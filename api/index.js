@@ -2,6 +2,15 @@ module.exports = async function handler(req, res) {
   const { url } = req.query
   if (!url) return res.status(400).send('Missing url')
 
+  // 檢查環境變數是否設定
+  const LOCATIONIQ_TOKEN = process.env.LOCATIONIQ_TOKEN
+  if (!LOCATIONIQ_TOKEN) {
+    console.error(
+      'CRITICAL: LOCATIONIQ_TOKEN is missing in environment variables.'
+    )
+    // 這裡不直接 return，或許前面步驟就能解掉，但在 Step 3 會失敗
+  }
+
   let current = url
 
   try {
@@ -40,14 +49,22 @@ module.exports = async function handler(req, res) {
       return res.status(200).send(`${match[1]},${match[2]}`)
     }
 
-    // ========= 3️⃣ OpenStreetMap fallback =========
+    // ========= 3️⃣ Fallback: LocationIQ API =========
+    // LocationIQ 是 Nominatim 的付費/託管版，參數邏輯幾乎一樣
+
+    if (!LOCATIONIQ_TOKEN) {
+      return res
+        .status(500)
+        .json({ error: 'Server Config Error: Missing API Token' })
+    }
+
     let query = null
 
     try {
       const u = new URL(current)
       query = u.searchParams.get('q')
 
-      // 處理 /place/ 格式
+      // 處理 /place/ 路徑格式
       if (!query && current.includes('/place/')) {
         const parts = u.pathname.split('/place/')
         if (parts[1]) {
@@ -65,75 +82,54 @@ module.exports = async function handler(req, res) {
       })
     }
 
-    // ✂️✂️✂️ 核心修改：針對「黏在一起」的地址進行清洗 ✂️✂️✂️
-    // 範例輸入: "335桃園市大溪區335月眉停車場"
-
-    // 1. 先做基本的逗號/空格切割 (防守第一層)
+    // ✂️✂️✂️ 地址清洗邏輯 (保留您驗證過的剝洋蔥法) ✂️✂️✂️
     let cleanQuery = query.split(/,|，/)[0].trim()
-
-    // 2. 剝洋蔥清洗法 (針對台灣地址結構)
-    // 步驟 A: 移除開頭的郵遞區號或數字 (移除 "335")
     cleanQuery = cleanQuery.replace(/^\d+\s?/, '')
-
-    // 步驟 B: 移除縣市 (移除 "桃園市"、"台北縣" 等)
     cleanQuery = cleanQuery.replace(/^.{2,3}[縣市]\s?/, '')
-
-    // 步驟 C: 移除鄉鎮市區 (移除 "大溪區"、"中壢市" 等)
     cleanQuery = cleanQuery.replace(/^.{2,3}[鄉鎮市區]\s?/, '')
-
-    // 步驟 D: 再次移除可能殘留的數字 (針對您案例中第二個 "335")
-    // 邏輯：地址被移除後，如果緊接著又是數字，通常是路段號碼或重複的郵遞區號
     cleanQuery = cleanQuery.replace(/^\d+\s?/, '')
 
-    // 步驟 E: 移除常見路名開頭 (選擇性，避免誤刪 "中正紀念堂" 的 "中正")
-    // 只有當確定後面還有字時才移除路名，這裡先保守一點，不移除路名
-
-    // 如果清洗後變空字串 (例如原本只有 "桃園市")，則還原回原始 query，避免送出空值
     if (!cleanQuery || cleanQuery.length < 2) {
-      cleanQuery = query.split(/,|，/)[0].trim() // 只做最簡單切割
+      cleanQuery = query.split(/,|，/)[0].trim()
     }
 
-    // =======================================================
-
-    const osmParams = new URLSearchParams({
-      q: cleanQuery, // 使用清洗後的名稱
-      format: 'jsonv2',
-      polygon_geojson: '1',
+    // 建構 LocationIQ 請求
+    const params = new URLSearchParams({
+      key: LOCATIONIQ_TOKEN,
+      q: cleanQuery,
+      format: 'json',
       limit: '1'
     })
 
-    const osmUrl = `https://nominatim.openstreetmap.org/search?${osmParams.toString()}`
+    // LocationIQ 官方 Endpoint
+    const targetUrl = `https://us1.locationiq.com/v1/search?${params.toString()}`
 
-    const osmRes = await fetch(osmUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8'
-      }
-    })
+    const apiRes = await fetch(targetUrl)
 
-    const contentType = osmRes.headers.get('content-type')
-    const isJson = contentType && contentType.includes('application/json')
+    // LocationIQ 錯誤處理 (例如 Quota Exceeded 或 Token 錯誤)
+    if (!apiRes.ok) {
+      const errText = await apiRes.text()
+      console.error(`LocationIQ Error [${apiRes.status}]:`, errText)
 
-    if (!osmRes.ok || !isJson) {
-      const errText = await osmRes.text()
+      // 401 = Token 錯誤, 429 = 超過額度
       return res.status(502).json({
-        error: 'OSM API Error',
-        statusCode: osmRes.status,
-        preview: errText.slice(0, 200)
+        error: 'LocationIQ API Error',
+        statusCode: apiRes.status,
+        preview: errText.slice(0, 100)
       })
     }
 
-    const data = await osmRes.json()
+    const data = await apiRes.json()
 
+    // LocationIQ 回傳格式與 OSM 幾乎一致
     if (data.length > 0) {
       return res.status(200).send(`${data[0].lat},${data[0].lon}`)
     }
 
     return res.status(404).json({
-      error: 'Coords not found (OSM returned empty)',
+      error: 'Coords not found (LocationIQ returned empty)',
       originalQuery: query,
-      cleanedQuery: cleanQuery, // 回傳清洗後的字串，方便你除錯看結果
+      cleanedQuery: cleanQuery,
       finalUrl: current
     })
   } catch (err) {
