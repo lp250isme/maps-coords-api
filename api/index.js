@@ -1,3 +1,4 @@
+// pages/api/index.js 或任一 Node/Next.js API route
 module.exports = async function handler(req, res) {
   const { url } = req.query
   if (!url) return res.status(400).send('Missing url')
@@ -9,16 +10,11 @@ module.exports = async function handler(req, res) {
   // 用來儲存最後找到的地點名稱 (Fallback 用)
   let lastFoundPlaceName = null
 
-  // 🛠️ Helper: 格式化並回傳座標 (小數點後 6 位)
+  // 🛠️ Helper: 格式化並回傳座標 (純文字)
   function sendLatLon(lat, lon) {
     const format = val => parseFloat(val).toFixed(6)
-
-    return res.status(200).json({
-      coordsFound: true,
-      lat: format(lat),
-      lon: format(lon),
-      placeName: lastFoundPlaceName
-    })
+    // 直接回傳 "緯度,經度" 字串
+    return res.status(200).send(`${format(lat)},${format(lon)}`)
   }
 
   // Helper: 嘗試從 URL 或 HTML 提取地點名稱
@@ -38,7 +34,7 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // 3. 從 HTML <title> (最後手段)
+      // 3. 從 HTML <title>
       if (htmlContent) {
         const titleMatch = htmlContent.match(/<title>(.*?)<\/title>/)
         if (titleMatch && titleMatch[1]) {
@@ -189,32 +185,22 @@ module.exports = async function handler(req, res) {
     // ==========================================
     console.log('⚠️ All attempts exhausted. No coordinates found.')
 
-    // 如果有找到地點名稱，回傳地點名稱
+    // 如果有找到地點名稱，直接回傳地名 (純文字)
     if (lastFoundPlaceName) {
       console.log('🔙 Returning Place Name instead:', lastFoundPlaceName)
-      return res.status(200).json({
-        coordsFound: false, // 標記為沒找到座標
-        placeName: lastFoundPlaceName, // 但找到了名字
-        message: 'Coordinates not found, returning place name.'
-      })
+      return res.status(200).send(lastFoundPlaceName)
     }
 
-    return res.status(404).json({
-      error: 'Coords and Place Name not found',
-      finalUrl: current
-    })
+    // 真的什麼都沒有，回傳 404 字串
+    return res.status(404).send('Coords not found')
   } catch (err) {
     console.error('Critical Error:', err)
 
     // 發生例外時，也試著回傳最後已知的地點名稱
     if (lastFoundPlaceName) {
-      return res.status(200).json({
-        coordsFound: false,
-        placeName: lastFoundPlaceName,
-        error: err.message
-      })
+      return res.status(200).send(lastFoundPlaceName)
     }
 
-    return res.status(500).json({ error: err.message })
+    return res.status(500).send('Server Error')
   }
 }
