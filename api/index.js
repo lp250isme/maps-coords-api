@@ -7,13 +7,12 @@ module.exports = async function handler(req, res) {
   let attempt = 0
   const MAX_ATTEMPTS = 10
 
-  // 用來儲存最後找到的地點名稱 (Fallback 用)
+  // 用來儲存最後找到的地點名稱
   let lastFoundPlaceName = null
 
   // 🛠️ Helper: 格式化並回傳座標 (純文字)
   function sendLatLon(lat, lon) {
     const format = val => parseFloat(val).toFixed(6)
-    // 直接回傳 "緯度,經度" 字串
     return res.status(200).send(`${format(lat)},${format(lon)}`)
   }
 
@@ -54,9 +53,7 @@ module.exports = async function handler(req, res) {
           return ogTitleMatch[1]
         }
       }
-    } catch (e) {
-      // 忽略解析錯誤
-    }
+    } catch (e) {}
     return null
   }
 
@@ -65,7 +62,7 @@ module.exports = async function handler(req, res) {
       attempt++
       console.log(`\n🔍 Attempt ${attempt}: Fetching ${current}`)
 
-      // 每次迴圈都試著提取名字
+      // 每次迴圈都更新地點名稱
       const tempName = extractPlaceName(current)
       if (tempName) lastFoundPlaceName = tempName
 
@@ -90,7 +87,7 @@ module.exports = async function handler(req, res) {
         continue
       }
 
-      // 2. 檢查 URL 本身座標 (!3d...!4d...)
+      // 2. 檢查 URL 本身座標
       const pinMatch = current.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
       if (pinMatch) {
         console.log('✅ Found via URL Data Param (!3d!4d)')
@@ -101,7 +98,6 @@ module.exports = async function handler(req, res) {
       if (!r.ok) break
       const html = await r.text()
 
-      // 更新地點名稱
       const htmlName = extractPlaceName(current, html)
       if (htmlName) lastFoundPlaceName = htmlName
 
@@ -115,7 +111,6 @@ module.exports = async function handler(req, res) {
       if (previewLinkMatch) {
         console.log('🔗 Found Preview Link Tag')
         let rawHref = previewLinkMatch[1]
-        // 移除 amp; 還原 &
         const cleanHref = rawHref.replace(/amp;/g, '')
         const rpcUrl = `https://www.google.com${cleanHref}`
 
@@ -129,7 +124,6 @@ module.exports = async function handler(req, res) {
 
         if (rpcRes.ok) {
           const rpcText = await rpcRes.text()
-          // 解析 RPC Array
           const rpcMatch = rpcText.match(
             /\[\s*\d+(?:\.\d+)?\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/
           )
@@ -138,12 +132,10 @@ module.exports = async function handler(req, res) {
             console.log('✅ Found coords in RPC Response!')
             const val1 = parseFloat(rpcMatch[1])
             const val2 = parseFloat(rpcMatch[2])
-
-            // 經度 (Lon) 120+ > 緯度 (Lat) 20+
             if (Math.abs(val1) < Math.abs(val2)) {
-              return sendLatLon(val1, val2) // val1=Lat, val2=Lon
+              return sendLatLon(val1, val2)
             }
-            return sendLatLon(val2, val1) // val2=Lat, val1=Lon
+            return sendLatLon(val2, val1)
           }
         }
       }
@@ -155,7 +147,7 @@ module.exports = async function handler(req, res) {
       )
       if (stateMatch) {
         console.log('✅ Found via APP_INITIALIZATION_STATE')
-        return sendLatLon(stateMatch[2], stateMatch[1]) // Group2=Lat, Group1=Lon
+        return sendLatLon(stateMatch[2], stateMatch[1])
       }
 
       // 策略 C: JS Redirect
@@ -181,25 +173,54 @@ module.exports = async function handler(req, res) {
     }
 
     // ==========================================
-    // 🏁 失敗處理 (找不到座標)
+    // 🏁 失敗處理 (Fallback)
     // ==========================================
     console.log('⚠️ All attempts exhausted. No coordinates found.')
 
-    // 如果有找到地點名稱，直接回傳地名 (純文字)
+    // 1. 如果過程中（跳轉中間）有抓到地名，直接回傳
     if (lastFoundPlaceName) {
-      console.log('🔙 Returning Place Name instead:', lastFoundPlaceName)
+      console.log('🔙 Returning Place Name from history:', lastFoundPlaceName)
       return res.status(200).send(lastFoundPlaceName)
     }
 
-    // 真的什麼都沒有，回傳 404 字串
+    // 2. 如果過程中沒抓到，回去「最原始的 URL」硬抓一次
+    let fallbackQuery = null
+    try {
+      const u = new URL(url) // 注意：這裡是 req.query.url (使用者輸入的原始網址)
+      fallbackQuery = u.searchParams.get('q')
+
+      // 處理 place 路徑
+      if (!fallbackQuery && u.pathname.includes('/place/')) {
+        fallbackQuery = decodeURIComponent(
+          u.pathname.split('/place/')[1].split('/')[0]
+        ).replace(/\+/g, ' ')
+      }
+    } catch (e) {}
+
+    if (fallbackQuery) {
+      console.log(
+        '🔙 Returning raw query param from original URL:',
+        fallbackQuery
+      )
+      return res.status(200).send(fallbackQuery)
+    }
+
+    // 3. 真的徹底沒救了，才回傳 404
     return res.status(404).send('Coords not found')
   } catch (err) {
     console.error('Critical Error:', err)
 
-    // 發生例外時，也試著回傳最後已知的地點名稱
+    // 發生例外時，也優先回傳名字
     if (lastFoundPlaceName) {
       return res.status(200).send(lastFoundPlaceName)
     }
+
+    // 嘗試從原始 URL 抓名字
+    try {
+      const u = new URL(url)
+      const q = u.searchParams.get('q')
+      if (q) return res.status(200).send(q)
+    } catch (e) {}
 
     return res.status(500).send('Server Error')
   }
