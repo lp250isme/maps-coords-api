@@ -3,22 +3,27 @@ module.exports = async function handler(req, res) {
   if (!url) return res.status(400).send('Missing url')
 
   let current = url
-  let location
 
   try {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
       const r = await fetch(current, {
-        redirect: 'manual'
+        redirect: 'manual',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ' +
+            'AppleWebKit/605.1.15 (KHTML, like Gecko) ' +
+            'Version/17.0 Mobile/15E148 Safari/604.1'
+        }
       })
 
-      location = r.headers.get('location')
-      if (!location) break
+      const nextLocation = r.headers.get('location')
+      if (!nextLocation) break
 
-      if (location.startsWith('/')) {
+      if (nextLocation.startsWith('/')) {
         const u = new URL(current)
-        current = u.origin + location
+        current = u.origin + nextLocation
       } else {
-        current = location
+        current = nextLocation
       }
     }
 
