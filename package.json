@@ -1,0 +1,11 @@
+{
+  "name": "maps-coords-api",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^119.0.0",
+    "puppeteer-core": "^21.5.2"
+  }
+}
