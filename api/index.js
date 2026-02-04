@@ -2,13 +2,9 @@ module.exports = async function handler(req, res) {
   const { url } = req.query
   if (!url) return res.status(400).send('Missing url')
 
-  // 檢查環境變數是否設定
   const LOCATIONIQ_TOKEN = process.env.LOCATIONIQ_TOKEN
   if (!LOCATIONIQ_TOKEN) {
-    console.error(
-      'CRITICAL: LOCATIONIQ_TOKEN is missing in environment variables.'
-    )
-    // 這裡不直接 return，或許前面步驟就能解掉，但在 Step 3 會失敗
+    console.warn('WARNING: LOCATIONIQ_TOKEN is missing.')
   }
 
   let current = url
@@ -20,10 +16,12 @@ module.exports = async function handler(req, res) {
         redirect: 'manual',
         method: 'GET',
         headers: {
+          // 🛠️ 修改：改用電腦版 UA，這能拿到資訊更豐富的 Desktop 頁面，而非 Mobile Preview
           'User-Agent':
-            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) ' +
-            'AppleWebKit/605.1.15 (KHTML, like Gecko) ' +
-            'Version/17.0 Mobile/15E148 Safari/604.1'
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
         }
       })
 
@@ -49,13 +47,86 @@ module.exports = async function handler(req, res) {
       return res.status(200).send(`${match[1]},${match[2]}`)
     }
 
+    // ========= 2.5️⃣ 爬取 HTML (強力解析版) =========
+    // 這裡處理您遇到的 "Preview Page" 或 "og:image 被縮短" 的情況
+    try {
+      console.log('Fetching HTML for scrapping:', current)
+
+      const htmlRes = await fetch(current, {
+        headers: {
+          // 再次強調，使用 Desktop UA
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8'
+        }
+      })
+
+      if (htmlRes.ok) {
+        const html = await htmlRes.text()
+
+        // 策略 A: 找 og:image 裡的 center 參數 (最準確)
+        // 格式: staticmap?center=25.123,121.123
+        let metaMatch =
+          html.match(/center=(-?\d+\.\d+)%2C(-?\d+\.\d+)/) ||
+          html.match(/center=(-?\d+\.\d+),(-?\d+\.\d+)/)
+
+        if (metaMatch) {
+          console.log('✅ Found via Meta Tag')
+          return res.status(200).send(`${metaMatch[1]},${metaMatch[2]}`)
+        }
+
+        // 策略 B: 找 Google Maps PB (Protocol Buffer) 格式 (您提供的 HTML 就是這種)
+        // 格式 1: !3d(緯度)!4d(經度) -> 這是精準地標
+        // 格式 2: !2d(經度)!3d(緯度) -> 這是視窗中心 (Fallback)
+        // 注意：HTML 裡面的 url 可能被 encode，所以要找 !3d 或是 %213d
+
+        // B1. 精準地標 (!3d緯度 !4d經度)
+        let pbMatch =
+          html.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ||
+          html.match(/%213d(-?\d+\.\d+)%214d(-?\d+\.\d+)/)
+
+        if (pbMatch) {
+          console.log('✅ Found via PB Pin (!3d!4d)')
+          return res.status(200).send(`${pbMatch[1]},${pbMatch[2]}`)
+        }
+
+        // B2. 視窗中心 (!2d經度 !3d緯度) - 您提供的 HTML 屬於這類
+        // 注意順序：!2d 是經度(Lon)，!3d 是緯度(Lat)
+        let viewMatch =
+          html.match(/!2d(-?\d+\.\d+)!3d(-?\d+\.\d+)/) ||
+          html.match(/%212d(-?\d+\.\d+)%213d(-?\d+\.\d+)/)
+
+        if (viewMatch) {
+          console.log('✅ Found via PB Viewport (!2d!3d)')
+          // viewMatch[1] 是經度, viewMatch[2] 是緯度 -> 轉成 Lat,Lon
+          return res.status(200).send(`${viewMatch[2]},${viewMatch[1]}`)
+        }
+
+        // 策略 C: 暴力搜尋 window.APP_INITIALIZATION_STATE (最後手段)
+        // 您的 HTML 裡有：[[[28897.39..., 121.52668..., 25.12977...], ...]
+        // 格式通常是 [zoom?, lon, lat]
+        const stateMatch = html.match(
+          /\[\[\[\d+\.?\d*,(-?\d+\.\d+),(-?\d+\.\d+)\]/
+        )
+        if (stateMatch) {
+          console.log('✅ Found via APP_INITIALIZATION_STATE')
+          // stateMatch[1] 是 Lon, stateMatch[2] 是 Lat
+          return res.status(200).send(`${stateMatch[2]},${stateMatch[1]}`)
+        }
+      }
+    } catch (scrapeErr) {
+      console.warn('HTML Scraping warning:', scrapeErr.message)
+    }
+
     // ========= 3️⃣ Fallback: LocationIQ API =========
-    // LocationIQ 是 Nominatim 的付費/託管版，參數邏輯幾乎一樣
+    // 只有當上面所有 regex 都失敗時，才走 API
 
     if (!LOCATIONIQ_TOKEN) {
       return res
         .status(500)
-        .json({ error: 'Server Config Error: Missing API Token' })
+        .json({
+          error: 'Server Config Error: Missing API Token and scraping failed'
+        })
     }
 
     let query = null
@@ -64,7 +135,6 @@ module.exports = async function handler(req, res) {
       const u = new URL(current)
       query = u.searchParams.get('q')
 
-      // 處理 /place/ 路徑格式
       if (!query && current.includes('/place/')) {
         const parts = u.pathname.split('/place/')
         if (parts[1]) {
@@ -82,7 +152,7 @@ module.exports = async function handler(req, res) {
       })
     }
 
-    // ✂️✂️✂️ 地址清洗邏輯 (保留您驗證過的剝洋蔥法) ✂️✂️✂️
+    // 清洗地址邏輯
     let cleanQuery = query.split(/,|，/)[0].trim()
     cleanQuery = cleanQuery.replace(/^\d+\s?/, '')
     cleanQuery = cleanQuery.replace(/^.{2,3}[縣市]\s?/, '')
@@ -93,7 +163,8 @@ module.exports = async function handler(req, res) {
       cleanQuery = query.split(/,|，/)[0].trim()
     }
 
-    // 建構 LocationIQ 請求
+    console.log('Fallback to LocationIQ with query:', cleanQuery)
+
     const params = new URLSearchParams({
       key: LOCATIONIQ_TOKEN,
       q: cleanQuery,
@@ -101,17 +172,12 @@ module.exports = async function handler(req, res) {
       limit: '1'
     })
 
-    // LocationIQ 官方 Endpoint
     const targetUrl = `https://us1.locationiq.com/v1/search?${params.toString()}`
 
     const apiRes = await fetch(targetUrl)
 
-    // LocationIQ 錯誤處理 (例如 Quota Exceeded 或 Token 錯誤)
     if (!apiRes.ok) {
       const errText = await apiRes.text()
-      console.error(`LocationIQ Error [${apiRes.status}]:`, errText)
-
-      // 401 = Token 錯誤, 429 = 超過額度
       return res.status(502).json({
         error: 'LocationIQ API Error',
         statusCode: apiRes.status,
@@ -121,7 +187,6 @@ module.exports = async function handler(req, res) {
 
     const data = await apiRes.json()
 
-    // LocationIQ 回傳格式與 OSM 幾乎一致
     if (data.length > 0) {
       return res.status(200).send(`${data[0].lat},${data[0].lon}`)
     }
