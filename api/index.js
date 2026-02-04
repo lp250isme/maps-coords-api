@@ -5,6 +5,7 @@ module.exports = async function handler(req, res) {
   let current = url
 
   try {
+    // ========= 1️⃣ 跟 Google Maps redirect =========
     for (let i = 0; i < 8; i++) {
       const r = await fetch(current, {
         redirect: 'manual',
@@ -27,14 +28,54 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    const match = current.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+    // ========= 2️⃣ 嘗試直接從 URL 拿座標 =========
+    let match = current.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
     if (match) {
       return res.status(200).send(`${match[1]},${match[2]}`)
     }
 
+    match = current.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+    if (match) {
+      return res.status(200).send(`${match[1]},${match[2]}`)
+    }
+
+    // ========= 3️⃣ OpenStreetMap fallback =========
+    let query = null
+
+    if (current.includes('/maps?q=')) {
+      query = new URL(current).searchParams.get('q')
+    }
+
+    if (!query) {
+      return res.status(404).json({
+        error: 'Coords not found',
+        finalUrl: current
+      })
+    }
+
+    const osmUrl =
+      'https://nominatim.openstreetmap.org/search?' +
+      new URLSearchParams({
+        q: query,
+        format: 'json',
+        limit: '1'
+      })
+
+    const osmRes = await fetch(osmUrl, {
+      headers: {
+        'User-Agent': 'maps-coords-api/1.0 (contact: you@example.com)'
+      }
+    })
+
+    const data = await osmRes.json()
+
+    if (data.length > 0) {
+      return res.status(200).send(`${data[0].lat},${data[0].lon}`)
+    }
+
     return res.status(404).json({
-      error: 'Coords not found',
-      finalUrl: current
+      error: 'Coords not found (OSM)',
+      query
     })
   } catch (err) {
     console.error(err)
