@@ -2,7 +2,6 @@ const chromium = require('@sparticuz/chromium');
 const puppeteer = require('puppeteer-core');
 
 module.exports = async (req, res) => {
-  // 1. 取得輸入的 url
   const { url } = req.query;
 
   if (!url) {
@@ -12,37 +11,33 @@ module.exports = async (req, res) => {
   let browser = null;
 
   try {
-    // 設定字型路徑 (避免因為缺字型報錯，雖然抓座標不需要顯示文字)
-    await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
+    // 針對 Vercel 新環境的圖形設定
+    // 這裡通常不需要額外設定 font，除非你要截圖有文字的畫面
+    // chromium.setGraphicsMode = false; // 如果有報錯再打開這行
 
-    // 2. 啟動瀏覽器
     browser = await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        '--disable-dev-shm-usage', // 關鍵優化：避免記憶體共享錯誤
-        '--no-sandbox'
-      ],
+      args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(), // 這裡維持這樣
       headless: chromium.headless,
-      ignoreHTTPSErrors: true,
     });
 
     const page = await browser.newPage();
 
-    // 3. 前往目標網址
+    // 設定 User Agent 避免被 Google 擋
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    // 前往目標網址
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 8000 });
 
-    // 4. 等待網址轉換
+    // 等待網址轉換
     try {
-      await page.waitForFunction(() => window.location.href.includes('@'), { timeout: 5000 });
+      await page.waitForFunction(() => window.location.href.includes('@'), { timeout: 6000 });
     } catch (e) {
-      // 忽略超時，直接解析當前網址
+      // 忽略超時
     }
 
     const finalUrl = page.url();
-
-    // 5. 正則表達式提取座標
     const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
     const match = finalUrl.match(regex);
 
@@ -51,10 +46,7 @@ module.exports = async (req, res) => {
       const lng = parseFloat(match[2]);
       res.status(200).send(`${lat},${lng}`);
     } else {
-      res.status(404).json({ 
-        error: '找不到座標', 
-        finalUrl: finalUrl 
-      });
+      res.status(404).json({ error: '找不到座標', finalUrl });
     }
 
   } catch (error) {
