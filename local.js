@@ -1,37 +1,22 @@
 // local.js
-require('dotenv').config() // 載入 .env 環境變數
+require('dotenv').config()
 const express = require('express')
-const handler = require('./api/index') // 引入您的主要邏輯
-
 const app = express()
-const port = process.env.PORT || 3000
 
-// 模擬 Vercel 的 Request/Response 處理
-app.use(express.json())
+// 引入你的主程式 (假設它在 api/index.js)
+const handler = require('./api/index')
 
-// 將所有請求導向到 handler
-app.get('/', async (req, res) => {
-  try {
-    await handler(req, res)
-  } catch (err) {
-    console.error(err)
-    res.status(500).send('Internal Server Error')
-  }
-})
-
-// 也可以處理 /api 的路徑 (視您的呼叫習慣而定)
+// 這樣當你訪問 http://localhost:3000/api?url=... 時才會執行
 app.get('/api', async (req, res) => {
-  try {
-    await handler(req, res)
-  } catch (err) {
-    console.error(err)
-    res.status(500).send('Internal Server Error')
-  }
+  await handler(req, res)
 })
 
-app.listen(port, () => {
-  console.log(`🚀 Local Server running at http://localhost:${port}`)
-  console.log(
-    `Testing URL: http://localhost:${port}/?url=https://maps.app.goo.gl/pwkhYkD4ankvVAo18?g_st=ic`
-  )
+// 根目錄給個簡單提示就好，不要列出檔案
+app.get('/', (req, res) => {
+  res.send('API is running. Please use /api?url=...')
+})
+
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`)
 })
