@@ -1,0 +1,15 @@
+node_modules/
+
+.next/
+out/
+build/
+dist/
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -10,5 +10,9 @@
   "dependencies": {
     "@sparticuz/chromium": "^131.0.1",
     "puppeteer-core": "^23.10.1"
+  },
+  "devDependencies": {
+    "express": "^5.2.1",
+    "puppeteer": "^24.36.1"
   }
 }
