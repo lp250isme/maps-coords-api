@@ -2,203 +2,150 @@ module.exports = async function handler(req, res) {
   const { url } = req.query
   if (!url) return res.status(400).send('Missing url')
 
-  const LOCATIONIQ_TOKEN = process.env.LOCATIONIQ_TOKEN
-  if (!LOCATIONIQ_TOKEN) {
-    console.warn('WARNING: LOCATIONIQ_TOKEN is missing.')
+  let current = url
+  let attempt = 0
+  const MAX_ATTEMPTS = 10
+
+  function sendLatLon(lat, lon) {
+    return res.status(200).send(`${lat},${lon}`)
   }
 
-  let current = url
-
   try {
-    // ========= 1️⃣ 跟隨 Google Maps redirect =========
-    for (let i = 0; i < 8; i++) {
+    while (attempt < MAX_ATTEMPTS) {
+      attempt++
+      console.log(`\n🔍 Attempt ${attempt}: Fetching ${current}`)
+
       const r = await fetch(current, {
-        redirect: 'manual',
-        method: 'GET',
+        redirect: 'manual', // 手動處理 Redirect，確保能捕捉中間過程
         headers: {
-          // 🛠️ 修改：改用電腦版 UA，這能拿到資訊更豐富的 Desktop 頁面，而非 Mobile Preview
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'zh-TW,en-US;q=0.9,en;q=0.8',
           Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
         }
       })
 
-      const nextLocation = r.headers.get('location')
-      if (!nextLocation) break
-
-      if (nextLocation.startsWith('/')) {
-        const u = new URL(current)
-        current = u.origin + nextLocation
-      } else {
-        current = nextLocation
+      // 1. 處理 HTTP 3xx Redirect
+      // 這是最自然的流程，伺服器叫我們去哪，我們就去哪
+      const locationHeader = r.headers.get('location')
+      if (locationHeader) {
+        console.log('➡️ HTTP Redirect:', locationHeader)
+        current = locationHeader.startsWith('/')
+          ? new URL(current).origin + locationHeader
+          : locationHeader
+        continue
       }
-    }
 
-    // ========= 2️⃣ 嘗試直接從 URL 拿座標 (Regex) =========
-    let match = current.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-    if (match) {
-      return res.status(200).send(`${match[1]},${match[2]}`)
-    }
-
-    match = current.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
-    if (match) {
-      return res.status(200).send(`${match[1]},${match[2]}`)
-    }
-
-    // ========= 2.5️⃣ 爬取 HTML (強力解析版) =========
-    // 這裡處理您遇到的 "Preview Page" 或 "og:image 被縮短" 的情況
-    try {
-      console.log('Fetching HTML for scrapping:', current)
-
-      const htmlRes = await fetch(current, {
-        headers: {
-          // 再次強調，使用 Desktop UA
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8'
-        }
-      })
-
-      if (htmlRes.ok) {
-        const html = await htmlRes.text()
-
-        // 策略 A: 找 og:image 裡的 center 參數 (最準確)
-        // 格式: staticmap?center=25.123,121.123
-        let metaMatch =
-          html.match(/center=(-?\d+\.\d+)%2C(-?\d+\.\d+)/) ||
-          html.match(/center=(-?\d+\.\d+),(-?\d+\.\d+)/)
-
-        if (metaMatch) {
-          console.log('✅ Found via Meta Tag')
-          return res.status(200).send(`${metaMatch[1]},${metaMatch[2]}`)
-        }
-
-        // 策略 B: 找 Google Maps PB (Protocol Buffer) 格式 (您提供的 HTML 就是這種)
-        // 格式 1: !3d(緯度)!4d(經度) -> 這是精準地標
-        // 格式 2: !2d(經度)!3d(緯度) -> 這是視窗中心 (Fallback)
-        // 注意：HTML 裡面的 url 可能被 encode，所以要找 !3d 或是 %213d
-
-        // B1. 精準地標 (!3d緯度 !4d經度)
-        let pbMatch =
-          html.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ||
-          html.match(/%213d(-?\d+\.\d+)%214d(-?\d+\.\d+)/)
-
-        if (pbMatch) {
-          console.log('✅ Found via PB Pin (!3d!4d)')
-          return res.status(200).send(`${pbMatch[1]},${pbMatch[2]}`)
-        }
-
-        // B2. 視窗中心 (!2d經度 !3d緯度) - 您提供的 HTML 屬於這類
-        // 注意順序：!2d 是經度(Lon)，!3d 是緯度(Lat)
-        let viewMatch =
-          html.match(/!2d(-?\d+\.\d+)!3d(-?\d+\.\d+)/) ||
-          html.match(/%212d(-?\d+\.\d+)%213d(-?\d+\.\d+)/)
-
-        if (viewMatch) {
-          console.log('✅ Found via PB Viewport (!2d!3d)')
-          // viewMatch[1] 是經度, viewMatch[2] 是緯度 -> 轉成 Lat,Lon
-          return res.status(200).send(`${viewMatch[2]},${viewMatch[1]}`)
-        }
-
-        // 策略 C: 暴力搜尋 window.APP_INITIALIZATION_STATE (最後手段)
-        // 您的 HTML 裡有：[[[28897.39..., 121.52668..., 25.12977...], ...]
-        // 格式通常是 [zoom?, lon, lat]
-        const stateMatch = html.match(
-          /\[\[\[\d+\.?\d*,(-?\d+\.\d+),(-?\d+\.\d+)\]/
-        )
-        if (stateMatch) {
-          console.log('✅ Found via APP_INITIALIZATION_STATE')
-          // stateMatch[1] 是 Lon, stateMatch[2] 是 Lat
-          return res.status(200).send(`${stateMatch[2]},${stateMatch[1]}`)
-        }
+      // 2. 檢查 URL 本身座標 (Regex)
+      // 有時候跳轉後的網址本身就帶著座標
+      const pinMatch = current.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+      if (pinMatch) {
+        console.log('✅ Found via URL Data Param (!3d!4d)')
+        return sendLatLon(pinMatch[1], pinMatch[2])
       }
-    } catch (scrapeErr) {
-      console.warn('HTML Scraping warning:', scrapeErr.message)
-    }
 
-    // ========= 3️⃣ Fallback: LocationIQ API =========
-    // 只有當上面所有 regex 都失敗時，才走 API
+      // 3. 讀取 HTML 進行深度解析
+      if (!r.ok) break
+      const html = await r.text()
 
-    if (!LOCATIONIQ_TOKEN) {
-      return res
-        .status(500)
-        .json({
-          error: 'Server Config Error: Missing API Token and scraping failed'
+      // ==========================================
+      // 🎯 核心策略: 抓取 Preview Link 並進行二次請求 (RPC Call)
+      // 這是目前驗證過最準確的數據源 (f.txt)
+      // ==========================================
+      const previewLinkMatch = html.match(
+        /<link\s+[^>]*href="(\/maps\/preview\/place\?[^"]+)"/
+      )
+
+      if (previewLinkMatch) {
+        console.log('🔗 Found Preview Link Tag, processing...')
+        let rawHref = previewLinkMatch[1]
+
+        // 移除所有 "amp;" (還原 & 符號) 並補上 domain
+        const cleanHref = rawHref.replace(/amp;/g, '')
+        const rpcUrl = `https://www.google.com${cleanHref}`
+
+        console.log('🚀 Fetching RPC Data from:', rpcUrl)
+
+        // 發送二次請求 (Fetch RPC Data)
+        const rpcRes = await fetch(rpcUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Referer: current
+          }
         })
-    }
 
-    let query = null
+        if (rpcRes.ok) {
+          const rpcText = await rpcRes.text()
 
-    try {
-      const u = new URL(current)
-      query = u.searchParams.get('q')
+          // 解析 f.txt 格式: [[magic_num, 經度, 緯度], ...]
+          // Group 1: 經度, Group 2: 緯度
+          const rpcMatch = rpcText.match(
+            /\[\s*\d+(?:\.\d+)?\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/
+          )
 
-      if (!query && current.includes('/place/')) {
-        const parts = u.pathname.split('/place/')
-        if (parts[1]) {
-          query = decodeURIComponent(parts[1].split('/')[0]).replace(/\+/g, ' ')
+          if (rpcMatch) {
+            console.log('✅ Found coords in RPC Response!')
+            const val1 = parseFloat(rpcMatch[1])
+            const val2 = parseFloat(rpcMatch[2])
+
+            // 防呆判斷：台灣/亞洲地區通常 經度(120+) > 緯度(20+)
+            // 如果 val1 比較小 (例如 25.1)，那它可能是緯度，需要交換
+            if (Math.abs(val1) < Math.abs(val2)) {
+              return sendLatLon(val1, val2) // val1=Lat, val2=Lon
+            }
+            return sendLatLon(val2, val1) // val2=Lat, val1=Lon
+          }
         }
       }
-    } catch (e) {
-      console.warn('URL parsing failed:', e.message)
+
+      // ==========================================
+      // [備案策略] 當前頁面靜態分析
+      // ==========================================
+
+      // 策略 B: APP_INITIALIZATION_STATE
+      const stateMatch = html.match(
+        /APP_INITIALIZATION_STATE\s*=\s*\[\s*\[\s*\[\s*[^,]+,\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\s*\]/
+      )
+      if (stateMatch) {
+        console.log('✅ Found via APP_INITIALIZATION_STATE')
+        return sendLatLon(stateMatch[2], stateMatch[1])
+      }
+
+      // 策略 C: JS Redirect (window.ES5DGURL)
+      // 如果還沒拿到座標，但有跳轉指令，就跟隨它
+      const jsRedirectMatch =
+        html.match(/window\.ES5DGURL\s*=\s*'([^']+)'/) ||
+        html.match(/window\.location\.replace\(['"]([^'"]+)['"]\)/)
+
+      if (jsRedirectMatch) {
+        let nextUrl = jsRedirectMatch[1]
+          .replace(/\\x26/g, '&')
+          .replace(/\\x3d/g, '=')
+          .replace(/\\u003d/g, '=')
+          .replace(/&/g, '&')
+
+        if (nextUrl.startsWith('/'))
+          nextUrl = 'https://www.google.com' + nextUrl
+        console.log('🔄 JS Redirect detected:', nextUrl)
+        current = nextUrl
+        continue
+      }
+
+      break // 沒戲唱了
     }
 
-    if (!query) {
-      return res.status(404).json({
-        error: 'Coords not found (No query param extracted)',
-        finalUrl: current
-      })
-    }
-
-    // 清洗地址邏輯
-    let cleanQuery = query.split(/,|，/)[0].trim()
-    cleanQuery = cleanQuery.replace(/^\d+\s?/, '')
-    cleanQuery = cleanQuery.replace(/^.{2,3}[縣市]\s?/, '')
-    cleanQuery = cleanQuery.replace(/^.{2,3}[鄉鎮市區]\s?/, '')
-    cleanQuery = cleanQuery.replace(/^\d+\s?/, '')
-
-    if (!cleanQuery || cleanQuery.length < 2) {
-      cleanQuery = query.split(/,|，/)[0].trim()
-    }
-
-    console.log('Fallback to LocationIQ with query:', cleanQuery)
-
-    const params = new URLSearchParams({
-      key: LOCATIONIQ_TOKEN,
-      q: cleanQuery,
-      format: 'json',
-      limit: '1'
-    })
-
-    const targetUrl = `https://us1.locationiq.com/v1/search?${params.toString()}`
-
-    const apiRes = await fetch(targetUrl)
-
-    if (!apiRes.ok) {
-      const errText = await apiRes.text()
-      return res.status(502).json({
-        error: 'LocationIQ API Error',
-        statusCode: apiRes.status,
-        preview: errText.slice(0, 100)
-      })
-    }
-
-    const data = await apiRes.json()
-
-    if (data.length > 0) {
-      return res.status(200).send(`${data[0].lat},${data[0].lon}`)
-    }
-
+    // ==========================================
+    // 🏁 失敗處理
+    // ==========================================
+    console.log('⚠️ All attempts exhausted. No coordinates found.')
     return res.status(404).json({
-      error: 'Coords not found (LocationIQ returned empty)',
-      originalQuery: query,
-      cleanedQuery: cleanQuery,
+      error: 'Coords not found',
       finalUrl: current
     })
   } catch (err) {
-    console.error('Handler Critical Error:', err)
+    console.error('Critical Error:', err)
     return res.status(500).json({ error: err.message })
   }
 }
