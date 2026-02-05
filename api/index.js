@@ -1,116 +1,282 @@
 module.exports = async function handler(req, res) {
   const { url } = req.query
+  
+  // 🛡️ [防護 1] 基本參數檢查
   if (!url) return res.status(400).json({ error: 'Missing url' })
+  if (!url.includes('google') && !url.includes('goo.gl')) {
+      return res.status(400).json({ error: 'Not a Google Maps URL' })
+  }
 
-  let current = url
-  let attempt = 0
-  const MAX_ATTEMPTS = 5
+  // 設定總共可以嘗試幾次 (1次正常 + 2次重試)
+  const MAX_GLOBAL_RETRIES = 3;
+  
+  // 用來跨重試階段保存地名 (如果第一次有抓到名字但沒座標，保留名字給最後用)
+  let globalBestPlaceName = null;
 
-  let lastFoundPlaceName = null
+  // 🛡️ [防護 2] 隨機 User-Agent 池
+  const USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+  ];
+  
+  const getRandomUA = () => USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // 🛠️ Helper: 統一回傳 JSON 格式
-  function sendResult(lat, lon) {
-    const format = val => parseFloat(val).toFixed(6)
+  // Helper: Fetch with timeout (prevent hanging)
+  const fetchWithTimeout = async (url, options = {}, timeout = 6000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      return response;
+    } finally {
+      clearTimeout(id);
+    }
+  };
 
-    // 如果有座標，組合成字串；否則為 null
-    const coords = lat && lon ? `${format(lat)},${format(lon)}` : null
+  // ==========================================
+  // 核心解析邏輯 (封裝成函式以供重試)
+  // ==========================================
+  async function tryFetchCoords(targetUrl, attemptIndex) {
+      let current = targetUrl
+      let innerAttempt = 0
+      const MAX_INNER_ATTEMPTS = 4 // 稍微減少內部跳轉次數，把時間留給重試
+      let localPlaceName = null
 
-    // 處理地名
-    let finalName = lastFoundPlaceName
-
-    // 如果目前沒名字，嘗試從原始 Query 撈
-    if (!finalName) {
       try {
-        const u = new URL(url)
-        const q = u.searchParams.get('q')
-        if (q) finalName = q
-      } catch (e) {}
-    }
+        while (innerAttempt < MAX_INNER_ATTEMPTS) {
+          innerAttempt++
+          // console.log(`   [Try ${attemptIndex}-${innerAttempt}] Fetching...`) // Debug 用
 
-    // 過濾無效地名
-    if (
-      finalName &&
-      (finalName.includes('Google Maps') || finalName.includes('Google 地圖'))
-    ) {
-      finalName = null
-    }
+          // 提取名字
+          const urlName = extractPlaceName(current)
+          if (urlName) localPlaceName = urlName
 
-    const safePlaceName = finalName || ''
+          // 每次請求都換一個 UA
+          const r = await fetchWithTimeout(current, {
+            redirect: 'manual',
+            headers: {
+              'User-Agent': getRandomUA(),
+              'Accept-Language': 'zh-TW,en-US;q=0.9'
+            }
+          }, 6000)
+
+          const locationHeader = r.headers.get('location')
+          
+          // FTID Shortcut
+          const redirectFtid = locationHeader ? getFtid(locationHeader) : null
+          if (redirectFtid) {
+            current = `https://www.google.com/maps?ftid=${redirectFtid}&hl=zh-TW`
+            continue
+          }
+
+          // Normal Redirect
+          if (locationHeader) {
+            current = locationHeader.startsWith('/') ? new URL(current).origin + locationHeader : locationHeader
+            continue
+          }
+
+          if (!r.ok) break
+          const html = await r.text()
+
+          // HTML 名字補強
+          const htmlName = extractPlaceName(current, html)
+          if (htmlName) localPlaceName = htmlName
+
+          // Update Global Name if we found something better
+          if (localPlaceName) globalBestPlaceName = localPlaceName;
+
+          // [Priority 0] Preload Link q param
+          const preloadLinkMatch = html.match(/<link\s+[^>]*href="(\/search\?[^"]*tbm=map[^"]*)"/);
+          if (preloadLinkMatch) {
+              try {
+                  const rawUrl = preloadLinkMatch[1].replace(/amp;/g, '');
+                  const linkUrl = new URL(`https://www.google.com${rawUrl}`);
+                  const q = linkUrl.searchParams.get('q');
+                  if (q) {
+                      const coordMatch = decodeURIComponent(q).match(/^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/);
+                      if (coordMatch) {
+                          console.log(`✅ [Try ${attemptIndex}] Found Priority 0 coords: ${q}`);
+                          const [lat, lon] = normalizeCoords(parseFloat(coordMatch[1]), parseFloat(coordMatch[3]));
+                          return { lat, lon, name: globalBestPlaceName };
+                      }
+                  }
+              } catch (e) {}
+          }
+
+          // Preview Link -> RPC
+          const previewLinkMatch = html.match(/<link\s+[^>]*href="(\/maps\/preview\/place\?[^"]+)"/)
+
+          if (previewLinkMatch) {
+            const rpcUrl = `https://www.google.com${previewLinkMatch[1].replace(/amp;/g, '')}`
+            const rpcRes = await fetchWithTimeout(rpcUrl, {
+              headers: { 'User-Agent': getRandomUA(), Referer: current }
+            }, 6000)
+
+            if (rpcRes.ok) {
+              const rpcText = await rpcRes.text()
+              let parsedData = null;
+
+              try {
+                  const cleanJson = rpcText.replace(/^\)]}'/, '').trim();
+                  parsedData = JSON.parse(cleanJson);
+                  const rpcName = parsedData?.[6]?.[11];
+                  if (rpcName && typeof rpcName === 'string') {
+                      globalBestPlaceName = rpcName; // Update global best
+                  }
+              } catch (e) {}
+
+              // Priority 1: Strict Pin
+              const strictMatch = rpcText.match(/\[\s*null\s*,\s*null\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/)
+              if (strictMatch) {
+                console.log(`✅ [Try ${attemptIndex}] Found Priority 1 strict coords`)
+                const [lat, lon] = normalizeCoords(strictMatch[1], strictMatch[2]);
+                return { lat, lon, name: globalBestPlaceName };
+              }
+
+              // Priority 2: JSON data[0]
+              if (parsedData && isValidCoordArray(parsedData[0])) {
+                 console.log(`✅ [Try ${attemptIndex}] Found Priority 2 JSON coords`);
+                 const [lat, lon] = normalizeCoords(parsedData[0][0], parsedData[0][1]);
+                 return { lat, lon, name: globalBestPlaceName };
+              }
+
+              // Priority 3: JSON data[1][0]
+              if (parsedData && Array.isArray(parsedData[1]) && isValidCoordArray(parsedData[1][0])) {
+                 console.log(`✅ [Try ${attemptIndex}] Found Priority 3 JSON coords`);
+                 const [lat, lon] = normalizeCoords(parsedData[1][0][0], parsedData[1][0][1]);
+                 return { lat, lon, name: globalBestPlaceName };
+              }
+
+              // Priority 4: JSON data[4][0] -> [??, lon, lat]
+              // Note: The user provided example shows [3162..., 126.9..., 37.5...]
+              // So index 1 = Lon, index 2 = Lat
+              if (parsedData && Array.isArray(parsedData[4]) && Array.isArray(parsedData[4][0]) && parsedData[4][0].length >= 3) {
+                  const targetArr = parsedData[4][0];
+                  const rawLon = parseFloat(targetArr[1]);
+                  const rawLat = parseFloat(targetArr[2]);
+                  
+                  // Strict check: must be valid numbers and NOT both zero (unless actually (0,0) which is rare for a place)
+                  // Also check against null explicitly just in case
+                  if (!isNaN(rawLon) && !isNaN(rawLat) && (rawLon !== 0 || rawLat !== 0)) {
+                      console.log(`✅ [Try ${attemptIndex}] Found Priority 4 JSON coords: ${rawLat}, ${rawLon}`);
+                      const [lat, lon] = normalizeCoords(rawLon, rawLat);
+                      return { lat, lon, name: globalBestPlaceName };
+                  }
+              }
+
+              // Priority 5: Viewport Regex
+              const fallbackMatch = rpcText.match(/\[\s*\d+(?:\.\d+)?\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/)
+              if (fallbackMatch) {
+                  console.log(`✅ [Try ${attemptIndex}] Found Priority 5 Viewport coords`)
+                  const [lat, lon] = normalizeCoords(fallbackMatch[1], fallbackMatch[2]);
+                  return { lat, lon, name: globalBestPlaceName };
+              }
+            }
+          }
+          // 如果沒找到，繼續 inner loop (跟隨 redirect)
+          if (!locationHeader && !previewLinkMatch) break; 
+        }
+      } catch (err) {
+          console.error(`⚠️ Attempt ${attemptIndex} Error:`, err.message);
+      }
+      return null; // This attempt failed
+  }
+
+  // ==========================================
+  // 🔄 主控台：全域重試迴圈
+  // ==========================================
+  try {
+      for (let i = 1; i <= MAX_GLOBAL_RETRIES; i++) {
+          console.log(`\n🚀 GLOBAL TRY ${i}/${MAX_GLOBAL_RETRIES} for: ${url}`);
+          
+          const result = await tryFetchCoords(url, i);
+          
+          if (result && result.lat && result.lon) {
+              return sendResult(res, result.lat, result.lon, result.name);
+          }
+
+          // 如果失敗了，且還有重試機會，就休息一下 (Exponential Backoff)
+          if (i < MAX_GLOBAL_RETRIES) {
+              const waitTime = 800 * Math.pow(1.5, i - 1);
+              console.log(`⏳ Coords not found in try ${i}. Waiting ${Math.round(waitTime)}ms to retry with new UA...`);
+              await sleep(waitTime);
+          }
+      }
+
+      // 如果全部重試都失敗
+      console.log('❌ All global retries exhausted.');
+      return sendResult(res, null, null, globalBestPlaceName);
+
+  } catch (err) {
+      console.error('Critical Error:', err.message)
+      return res.status(500).json({ error: 'Server Error', placeName: globalBestPlaceName || "" })
+  }
+
+  // ==========================================
+  // Helpers
+  // ==========================================
+  function sendResult(res, lat, lon, name) {
+    const format = val => parseFloat(val).toFixed(6)
+    const coords = lat && lon ? `${format(lat)},${format(lon)}` : null
+    
+    // 處理名字
+    let finalName = name;
+    if (!finalName) {
+        try {
+            const u = new URL(url)
+            const q = u.searchParams.get('q')
+            if (q) finalName = q
+        } catch (e) {}
+    }
+    if (finalName && (finalName.includes('Google Maps') || finalName.includes('Google 地圖'))) {
+        finalName = null;
+    }
+    const safePlaceName = finalName || "";
 
     if (coords || safePlaceName) {
-      return res.status(200).json({
-        coords: coords,
-        placeName: safePlaceName
-      })
+      return res.status(200).json({ coords, placeName: safePlaceName })
     } else {
-      return res.status(404).json({
-        error: 'Coords not found',
-        placeName: ''
-      })
+      return res.status(404).json({ error: 'Coords not found', placeName: "" })
     }
   }
 
-  // 🛠️ Helper: 判斷並標準化座標
   function normalizeCoords(v1, v2) {
-    const num1 = parseFloat(v1)
-    const num2 = parseFloat(v2)
-
-    // 防呆：在台灣/亞洲，經度(100+)通常 > 緯度(20+)
-    // 如果 num1 較大，代表它是經度，回傳 [Lat, Lon]
-    if (Math.abs(num1) > Math.abs(num2)) {
-      return [num2, num1]
-    }
-    return [num1, num2]
+      const num1 = parseFloat(v1);
+      const num2 = parseFloat(v2);
+      if (Math.abs(num1) > Math.abs(num2)) return [num2, num1]; 
+      return [num1, num2];
   }
 
-  // 🛠️ Helper: 檢查陣列是否像座標
   function isValidCoordArray(arr) {
-    return (
-      Array.isArray(arr) &&
-      arr.length >= 2 &&
-      !isNaN(parseFloat(arr[0])) &&
-      !isNaN(parseFloat(arr[1]))
-    )
+      return Array.isArray(arr) && arr.length >= 2 && 
+             !isNaN(parseFloat(arr[0])) && !isNaN(parseFloat(arr[1]));
   }
 
-  // 🛠️ Helper: 提取地名
   function extractPlaceName(currentUrl, htmlContent = '') {
     try {
       const u = new URL(currentUrl)
-
-      // 1. URL Query
       let name = u.searchParams.get('q') || u.searchParams.get('query')
-      if (name && !name.match(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/)) {
-        return name
-      }
+      if (name && !name.match(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/)) return name
 
-      // 2. URL Path
       if (currentUrl.includes('/place/')) {
         const parts = u.pathname.split('/place/')
-        if (parts[1]) {
-          return decodeURIComponent(parts[1].split('/')[0]).replace(/\+/g, ' ')
-        }
+        if (parts[1]) return decodeURIComponent(parts[1].split('/')[0]).replace(/\+/g, ' ')
       }
 
-      // 3. HTML Title
       if (htmlContent) {
         const titleMatch = htmlContent.match(/<title>(.*?)<\/title>/)
         if (titleMatch && titleMatch[1]) {
-          let title = titleMatch[1]
-            .replace(' - Google Maps', '')
-            .replace(' - Google 地圖', '')
-            .trim()
-          if (title && title !== 'Google Maps' && title !== 'Google 地圖')
-            return title
+          let title = titleMatch[1].replace(' - Google Maps', '').replace(' - Google 地圖', '').trim()
+          if (title && title !== 'Google Maps' && title !== 'Google 地圖') return title
         }
-
-        const ogTitleMatch = htmlContent.match(
-          /<meta\s+property="og:title"\s+content="(.*?)"/
-        )
+        const ogTitleMatch = htmlContent.match(/<meta\s+property="og:title"\s+content="(.*?)"/)
         if (ogTitleMatch && ogTitleMatch[1]) {
-          let ogTitle = ogTitleMatch[1]
-          if (ogTitle !== 'Google Maps' && ogTitle !== 'Google 地圖')
-            return ogTitle
+             let ogTitle = ogTitleMatch[1];
+             if (ogTitle !== 'Google Maps' && ogTitle !== 'Google 地圖') return ogTitle;
         }
       }
     } catch (e) {}
@@ -121,193 +287,6 @@ module.exports = async function handler(req, res) {
     try {
       const u = new URL(urlStr)
       return u.searchParams.get('ftid')
-    } catch (e) {
-      return null
-    }
-  }
-
-  try {
-    while (attempt < MAX_ATTEMPTS) {
-      attempt++
-      console.log(`\n🔍 Attempt ${attempt}: Fetching ${current}`)
-
-      const urlName = extractPlaceName(current)
-      if (urlName) lastFoundPlaceName = urlName
-
-      const r = await fetch(current, {
-        redirect: 'manual',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept-Language': 'zh-TW,en-US;q=0.9'
-        }
-      })
-
-      const locationHeader = r.headers.get('location')
-
-      const redirectFtid = locationHeader ? getFtid(locationHeader) : null
-      if (redirectFtid) {
-        console.log(`⚡ Shortcut: Found FTID [${redirectFtid}]`)
-        current = `https://www.google.com/maps?ftid=${redirectFtid}&hl=zh-TW`
-        continue
-      }
-
-      if (locationHeader) {
-        console.log('➡️ Normal Redirect:', locationHeader)
-        current = locationHeader.startsWith('/')
-          ? new URL(current).origin + locationHeader
-          : locationHeader
-        continue
-      }
-
-      if (!r.ok) break
-      const html = await r.text()
-
-      const htmlName = extractPlaceName(current, html)
-      if (htmlName) lastFoundPlaceName = htmlName
-
-      // ==========================================
-      // 🚀 [Priority 0] 檢查 Preload Link 中的 q 參數
-      // ==========================================
-      // 尋找 <link href="/search?tbm=map...q=..." ...>
-      const preloadLinkMatch = html.match(
-        /<link\s+[^>]*href="(\/search\?[^"]*tbm=map[^"]*)"/
-      )
-
-      if (preloadLinkMatch) {
-        try {
-          // 還原 &amp; -> &
-          const rawUrl = preloadLinkMatch[1].replace(/amp;/g, '')
-          const linkUrl = new URL(`https://www.google.com${rawUrl}`)
-
-          // 提取 q 參數
-          const q = linkUrl.searchParams.get('q')
-
-          if (q) {
-            // 檢查 q 是否為純座標格式 (數字,數字)
-            // Regex: 開頭-可選負號-數字-逗號-可選負號-數字-結尾
-            const coordMatch = decodeURIComponent(q).match(
-              /^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/
-            )
-
-            if (coordMatch) {
-              console.log(
-                `✅ [Priority 0] Found direct coords in <link> q param: ${q}`
-              )
-              const val1 = parseFloat(coordMatch[1])
-              const val2 = parseFloat(coordMatch[3])
-
-              // 使用 normalize 確保經緯順序
-              const [lat, lon] = normalizeCoords(val1, val2)
-              return sendResult(lat, lon)
-            }
-          }
-        } catch (e) {
-          console.log('⚠️ Failed to parse preload link params:', e.message)
-        }
-      }
-
-      // ==========================================
-      // 原有邏輯：Preview Link -> RPC
-      // ==========================================
-      const previewLinkMatch = html.match(
-        /<link\s+[^>]*href="(\/maps\/preview\/place\?[^"]+)"/
-      )
-
-      if (previewLinkMatch) {
-        console.log('🔗 Found Preview Link, fetching RPC...')
-        const rpcUrl = `https://www.google.com${previewLinkMatch[1].replace(/amp;/g, '')}`
-
-        const rpcRes = await fetch(rpcUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            Referer: current
-          }
-        })
-
-        if (rpcRes.ok) {
-          const rpcText = await rpcRes.text()
-          let parsedData = null
-
-          // 解析 JSON 以供 Priority 2 & 3 使用
-          try {
-            const cleanJson = rpcText.replace(/^\)]}'/, '').trim()
-            parsedData = JSON.parse(cleanJson)
-
-            const rpcName = parsedData?.[6]?.[11]
-            if (rpcName && typeof rpcName === 'string') {
-              console.log(`📍 Found Official Place Name in RPC: ${rpcName}`)
-              lastFoundPlaceName = rpcName
-            }
-          } catch (e) {
-            console.log('⚠️ RPC JSON parse failed (non-fatal)')
-          }
-
-          // ==========================================
-          // 🎯 座標解析：4 階段策略
-          // ==========================================
-
-          // 【Priority 1】Regex 嚴格搜尋 [null, null, Lat, Lon] (Entity Pin)
-          const strictMatch = rpcText.match(
-            /\[\s*null\s*,\s*null\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/
-          )
-          if (strictMatch) {
-            console.log(
-              '✅ [Plan 1] Found strict Pin Location [null, null, ...]'
-            )
-            const [lat, lon] = normalizeCoords(strictMatch[1], strictMatch[2])
-            return sendResult(lat, lon)
-          }
-
-          // 【Priority 2】JSON data[0]
-          if (parsedData && isValidCoordArray(parsedData[0])) {
-            console.log('✅ [Plan 2] Found coords in data[0]')
-            const arr = parsedData[0]
-            const [lat, lon] = normalizeCoords(arr[0], arr[1])
-            return sendResult(lat, lon)
-          }
-
-          // 【Priority 3】JSON data[1][0]
-          if (
-            parsedData &&
-            Array.isArray(parsedData[1]) &&
-            isValidCoordArray(parsedData[1][0])
-          ) {
-            console.log('✅ [Plan 3] Found coords in data[1][0]')
-            const arr = parsedData[1][0]
-            const [lat, lon] = normalizeCoords(arr[0], arr[1])
-            return sendResult(lat, lon)
-          }
-
-          // 【Priority 4 (Fallback)】Regex 寬鬆搜尋 [Num, Lon, Lat] (Viewport)
-          console.log('⚠️ Plans 1-3 failed. Trying Plan 4 (Viewport Regex)...')
-          const fallbackMatch = rpcText.match(
-            /\[\s*\d+(?:\.\d+)?\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/
-          )
-          if (fallbackMatch) {
-            console.log('✅ [Plan 4] Found Viewport Location [Num, ...]')
-            const [lat, lon] = normalizeCoords(
-              fallbackMatch[1],
-              fallbackMatch[2]
-            )
-            return sendResult(lat, lon)
-          }
-
-          console.log('⚠️ All coordinate extraction plans failed.')
-        }
-      }
-      break
-    }
-
-    // 3. 失敗回傳
-    console.log('⚠️ No coords found, returning fallback.')
-    return sendResult(null, null)
-  } catch (err) {
-    console.error('Error:', err.message)
-    return res.status(500).json({
-      error: 'Server Error',
-      placeName: lastFoundPlaceName || ''
-    })
+    } catch (e) { return null }
   }
 }
