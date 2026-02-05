@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from './store';
 import { I18N } from './i18n';
 import Header from './components/Header';
 import Controls from './components/Controls';
 import InputSection from './components/InputSection';
-import ConvertButton from './components/ConvertButton';
 import ResultCard from './components/ResultCard';
 import InfoModal from './components/InfoModal';
 import HistoryModal from './components/HistoryModal';
@@ -21,20 +21,29 @@ function App() {
   const [result, setResult] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState('history'); 
   const lastConvertedUrl = React.useRef('');
+
+  const openHistory = () => {
+      setHistoryTab('history');
+      setIsHistoryOpen(true);
+  };
+
+  const openFavorites = () => {
+      setHistoryTab('favorites');
+      setIsHistoryOpen(true);
+  };
 
   useEffect(() => {
     initTheme();
     initLang();
   }, []);
 
-  // Handle URL Params (Quick Share)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q') || params.get('url');
     if (query) {
         setUrl(query);
-        // Small delay to ensure state and handlers are ready
         setTimeout(() => {
             handleConvert(query);
         }, 500);
@@ -50,19 +59,17 @@ function App() {
     setError('');
     setResult(null);
 
-    // Regex for Lat,Lon (Simple validation: "num, num")
     const coordsRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
     const match = inputUrl.trim().match(coordsRegex);
 
     if (match) {
-        // Reverse Geocoding Mode (Direct Coords)
         const lat = match[1];
         const lon = match[3];
         const coords = `${lat},${lon}`;
         
         const resultItem = {
             coords,
-            placeName: `${lat}, ${lon}`, // Use coords as name for direct mode
+            placeName: `${lat}, ${lon}`,
             lat,
             lon,
             timestamp: Date.now()
@@ -77,7 +84,6 @@ function App() {
         return; 
     }
 
-    // Standard URL Mode
     try {
       const res = await axios.get('/api', {
         params: { url: inputUrl.trim() }
@@ -90,7 +96,6 @@ function App() {
          throw new Error(t.pleaseCopyFromShare);
       }
 
-      // Parse coords
       const [lat, lon] = coords.replace(/\s/g, '').split(',');
 
       const resultItem = {
@@ -110,7 +115,6 @@ function App() {
       setTimeout(() => setSuccess(false), 1500);
 
     } catch (err) {
-      // Axios error handling
       if (err.response) {
           const { status, data } = err.response;
           if (status === 404 || data.error === 'Coords not found') {
@@ -128,47 +132,168 @@ function App() {
     }
   };
 
+  const handleReset = () => {
+    if (result) {
+        setResult(null);
+        setUrl('');
+        setError('');
+        setSuccess(false);
+        lastConvertedUrl.current = ''; // Reset duplicate check
+    }
+  };
+
   return (
-    <div className="container min-h-screen flex flex-col justify-start items-center pt-[100px] px-6 pb-10 w-full max-w-[500px] mx-auto text-center">
-      <Controls 
-        onInfoClick={() => setIsModalOpen(true)}
-        onHistoryClick={() => setIsHistoryOpen(true)}
-      />
+    <div className={`
+        min-h-screen flex flex-col items-center w-full mx-auto text-center overflow-hidden transition-all duration-500 ease-out
+        ${result ? 'bg-black/5' : ''}
+    `}>
       
-      <Header />
-      
-      <div className="input-group relative mb-5 flex items-stretch gap-3 h-[52px]">
-        <InputSection 
-            url={url} 
-            setUrl={setUrl} 
-            onAutoPaste={(pastedText) => {
-                if (pastedText && pastedText.trim() !== lastConvertedUrl.current) {
-                    // Slight timeout to allow state to settle if needed, but we can also
-                    // call conversion directly with the pasted text if we refactor handleConvert
-                    // For now, let's update state then trigger.
-                    setUrl(pastedText);
-                    setTimeout(() => document.getElementById('convertBtn')?.click(), 100);
-                }
-            }}
-        />
-        <ConvertButton 
-            onClick={handleConvert} 
-            loading={isLoading} 
-            success={success} 
-            disabled={!url.trim() || isLoading || success}
-        />
+      {/* Controls (Fixed Top Right) */}
+      <div className="fixed top-4 right-4 z-50 sm:top-6 sm:right-6">
+          <Controls 
+            onInfoClick={() => setIsModalOpen(true)}
+            onHistoryClick={openHistory}
+            onFavoritesClick={openFavorites}
+          />
       </div>
 
-      {error && !result && <p className="text-[#FF3B30] text-sm mt-3 animate-slide-up">{error}</p>}
-      
-      {result && (
-        <ResultCard result={result} />
-      )}
+      {/* Main Content Wrapper - Takes available space */}
+      <main className={`
+          flex-1 w-full flex flex-col px-5
+          container mx-auto sm:max-w-[600px]
+          transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1)
+          ${result ? 'pt-4 sm:pt-6 justify-start' : 'pt-[30vh] justify-start'}
+      `}>
+
+          {/* Persistent Layout Container */}
+          <motion.div 
+              layout
+              className={`
+                  flex w-full z-10 mb-4
+                  ${result 
+                      ? 'flex-row items-center justify-start gap-3 mb-5 pl-0 h-10' 
+                      : 'flex-col items-center justify-center gap-4'
+                  }
+              `}
+          >
+              {/* Icon Container */}
+              <motion.div 
+                  layout
+                  className={`
+                      relative z-20 flex-shrink-0
+                      ${result ? 'cursor-pointer active:scale-95' : ''}
+                  `}
+                  onClick={handleReset}
+                  animate={{ 
+                      scale: result ? 1 : 1.5,
+                  }}
+                  transition={{ 
+                      type: "spring", 
+                      stiffness: 200, 
+                      damping: 25
+                  }}
+              >
+                  <Header />
+              </motion.div>
+              
+              {/* App Name */}
+              <motion.h1 
+                  layout="position"
+                  animate={{ 
+                      opacity: 1, 
+                      scale: result ? 1 : 1.2, 
+                      originX: result ? 0 : 0.5,
+                      originY: 0.5
+                  }}
+                  transition={{ 
+                      type: "spring", 
+                      stiffness: 200, 
+                      damping: 25 
+                  }}
+                  className={`
+                      font-bold tracking-tight text-text-primary whitespace-nowrap overflow-hidden text-lg
+                  `}
+              >
+                  GTC
+              </motion.h1>
+          </motion.div>
+              
+              {/* Input Section */}
+              <motion.div 
+                  layout
+                  className={`
+                      w-full transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1)
+                      ${result ? 'max-w-full' : 'max-w-[400px] mx-auto'}
+                  `}
+                  transition={{ 
+                      type: "spring", 
+                      stiffness: 250, 
+                      damping: 30
+                  }}
+              >
+                  <InputSection 
+                      url={url} 
+                      setUrl={setUrl} 
+                      loading={isLoading}
+                      success={success}
+                      onConvert={() => handleConvert()}
+                      onAutoPaste={(pastedText) => {
+                          if (pastedText && pastedText.trim() !== lastConvertedUrl.current) {
+                              setUrl(pastedText);
+                              setTimeout(() => handleConvert(pastedText), 200);
+                          }
+                      }}
+                  />
+              </motion.div>
+          
+          {/* Error & Result */}
+          <div className="w-full relative min-h-[50px] z-0">
+            <AnimatePresence>
+                {error && !result && (
+                    <motion.p 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-[#FF3B30] text-sm mt-3 absolute w-full left-0 text-center"
+                    >
+                        {error}
+                    </motion.p>
+                )}
+            </AnimatePresence>
+            
+            <AnimatePresence mode="popLayout">
+                {result && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                        transition={{ 
+                            type: "spring", 
+                            stiffness: 300, 
+                            damping: 30, 
+                            delay: 0.2 // Delay slightly to let layout settle
+                        }}
+                    >
+                        <ResultCard result={result} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+          </div>
+          
+      </main>
+
+      {/* Footer - Always visible, fixed at bottom flow */}
+      <footer 
+        className="w-full py-6 text-center text-[10px] text-text-secondary font-medium shrink-0"
+      >
+          © {new Date().getFullYear()} kv. All rights reserved.
+      </footer>
       
       <InfoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <HistoryModal 
           isOpen={isHistoryOpen} 
           onClose={() => setIsHistoryOpen(false)} 
+          initialTab={historyTab}
           onSelect={(item) => {
               setResult({
                   coords: item.coords,
@@ -176,7 +301,6 @@ function App() {
                   lat: item.lat,
                   lon: item.lon
               });
-              // Optional: Clear URL or set it if we stored it
               setSuccess(true);
               setTimeout(() => setSuccess(false), 1500);
           }}

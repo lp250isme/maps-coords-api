@@ -29,6 +29,8 @@ export const I18N = {
         calculating: '定位中...',
         showDistance: '顯示距離',
         locError: '重試定位',
+        lightMode: '亮色模式',
+        darkMode: '深色模式',
         weather: {
             clear: '晴朗',
             cloudy: '多雲',
@@ -37,7 +39,22 @@ export const I18N = {
             snow: '下雪',
             storm: '暴風雨',
             unknown: '未知'
-        }
+        },
+        settings: {
+            title: '顯示設定',
+            showCoords: '顯示座標',
+            showDistance: '顯示距離',
+            showWeather: '天氣資訊',
+            showAppleMap: 'Apple Maps',
+            showNaverMap: 'Naver Maps',
+            showMapPreview: '地圖預覽'
+        },
+        favModalTitle: '為此地點命名',
+        favModalDesc: '為您的收藏選擇一個自訂名稱。',
+        favModalPlaceholder: '地點名稱',
+        save: '儲存',
+        cancel: '取消', 
+        linkCopied: '連結已複製到剪貼簿！'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -69,6 +86,8 @@ export const I18N = {
         calculating: 'Locating...',
         showDistance: 'Show Distance',
         locError: 'Retry Location',
+        lightMode: 'Light Mode',
+        darkMode: 'Dark Mode',
         weather: {
             clear: 'Clear',
             cloudy: 'Cloudy',
@@ -77,6 +96,21 @@ export const I18N = {
             snow: 'Snow',
             storm: 'Storm',
             unknown: 'Unknown'
-        }
+        },
+        settings: {
+            title: 'Display Settings',
+            showCoords: 'Show Coordinates',
+            showDistance: 'Show Distance',
+            showWeather: 'Weather Info',
+            showAppleMap: 'Apple Maps',
+            showNaverMap: 'Naver Maps',
+            showMapPreview: 'Map Preview'
+        },
+        favModalTitle: 'Name this location',
+        favModalDesc: 'Choose a custom name for your favorite.',
+        favModalPlaceholder: 'Location Name',
+        save: 'Save',
+        cancel: 'Cancel',
+        linkCopied: 'Link copied to clipboard!'
     }
 };

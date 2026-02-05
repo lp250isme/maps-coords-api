@@ -75,6 +75,20 @@ export const useStore = create((set) => ({
       localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
       return { favorites: newFavorites };
   }),
+
+  addFavorite: (item, customName) => set((state) => {
+      const filtered = state.favorites.filter(f => f.coords !== item.coords);
+      const newItem = { ...item, customName: customName }; 
+      const newFavorites = [newItem, ...filtered];
+      localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
+      return { favorites: newFavorites };
+  }),
+
+  removeFavorite: (coords) => set((state) => {
+      const newFavorites = state.favorites.filter(f => f.coords !== coords);
+      localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
+      return { favorites: newFavorites };
+  }),
   
   initTheme: () => {
      const theme = getInitialTheme();
@@ -85,5 +99,21 @@ export const useStore = create((set) => ({
   initLang: () => {
       const lang = getInitialLang();
       document.documentElement.lang = lang;
-  }
+  },
+
+  // Settings Slice
+  settings: JSON.parse(localStorage.getItem('gtc_settings')) || {
+      showCoords: false,
+      showDistance: true,
+      showWeather: true,
+      showAppleMap: true,
+      showNaverMap: true,
+      showMapPreview: true
+  },
+
+  toggleSetting: (key) => set((state) => {
+      const newSettings = { ...state.settings, [key]: !state.settings[key] };
+      localStorage.setItem('gtc_settings', JSON.stringify(newSettings));
+      return { settings: newSettings };
+  })
 }));
