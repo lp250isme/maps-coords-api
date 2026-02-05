@@ -8,9 +8,10 @@ import InputSection from './components/InputSection';
 import ConvertButton from './components/ConvertButton';
 import ResultCard from './components/ResultCard';
 import InfoModal from './components/InfoModal';
+import HistoryModal from './components/HistoryModal';
 
 function App() {
-  const { theme, lang, initTheme, initLang } = useStore();
+  const { theme, lang, initTheme, initLang, addToHistory } = useStore();
   const t = I18N[lang];
   
   const [url, setUrl] = useState('');
@@ -19,6 +20,7 @@ function App() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const lastConvertedUrl = React.useRef('');
 
   useEffect(() => {
@@ -26,24 +28,62 @@ function App() {
     initLang();
   }, []);
 
-  const handleConvert = async () => {
-    if (!url.trim()) return;
+  // Handle URL Params (Quick Share)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const query = params.get('q') || params.get('url');
+    if (query) {
+        setUrl(query);
+        // Small delay to ensure state and handlers are ready
+        setTimeout(() => {
+            handleConvert(query);
+        }, 500);
+    }
+  }, []);
+
+  const handleConvert = async (directUrl) => {
+    const inputUrl = typeof directUrl === 'string' ? directUrl : url;
+    if (!inputUrl.trim()) return;
 
     setIsLoading(true);
     setSuccess(false);
     setError('');
     setResult(null);
 
-    // Simulate map frame reset
-    // In React we just conditionally render or update props
+    // Regex for Lat,Lon (Simple validation: "num, num")
+    const coordsRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
+    const match = inputUrl.trim().match(coordsRegex);
 
+    if (match) {
+        // Reverse Geocoding Mode (Direct Coords)
+        const lat = match[1];
+        const lon = match[3];
+        const coords = `${lat},${lon}`;
+        
+        const resultItem = {
+            coords,
+            placeName: `${lat}, ${lon}`, // Use coords as name for direct mode
+            lat,
+            lon,
+            timestamp: Date.now()
+        };
+
+        setResult(resultItem);
+        addToHistory(resultItem);
+        lastConvertedUrl.current = inputUrl.trim();
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1500);
+        setIsLoading(false);
+        return; 
+    }
+
+    // Standard URL Mode
     try {
       const res = await axios.get('/api', {
-        params: { url: url.trim() }
+        params: { url: inputUrl.trim() }
       });
       const data = res.data;
 
-      // axios throws on non-2xx by default, but we'll check just in case or handle catch block
       const { coords, placeName } = data;
       
       if (!coords) {
@@ -53,14 +93,18 @@ function App() {
       // Parse coords
       const [lat, lon] = coords.replace(/\s/g, '').split(',');
 
-      setResult({
+      const resultItem = {
         coords,
         placeName: placeName || t.unknownPlace,
         lat,
-        lon
-      });
+        lon,
+        timestamp: Date.now()
+      };
+
+      setResult(resultItem);
+      addToHistory(resultItem);
       
-      lastConvertedUrl.current = url.trim();
+      lastConvertedUrl.current = inputUrl.trim();
       
       setSuccess(true);
       setTimeout(() => setSuccess(false), 1500);
@@ -71,6 +115,8 @@ function App() {
           const { status, data } = err.response;
           if (status === 404 || data.error === 'Coords not found') {
               setError(t.pleaseCopyFromShare);
+          } else if (data.error === 'Not a Google Maps URL') {
+              setError(t.invalidUrl);
           } else {
               setError(data.error || t.errorFetching);
           }
@@ -86,6 +132,7 @@ function App() {
     <div className="container min-h-screen flex flex-col justify-start items-center pt-[100px] px-6 pb-10 w-full max-w-[500px] mx-auto text-center">
       <Controls 
         onInfoClick={() => setIsModalOpen(true)}
+        onHistoryClick={() => setIsHistoryOpen(true)}
       />
       
       <Header />
@@ -112,13 +159,28 @@ function App() {
         />
       </div>
 
-      {error && <p className="text-[#FF3B30] text-sm mt-3 animate-slide-up">{error}</p>}
+      {error && !result && <p className="text-[#FF3B30] text-sm mt-3 animate-slide-up">{error}</p>}
       
       {result && (
         <ResultCard result={result} />
       )}
       
       <InfoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <HistoryModal 
+          isOpen={isHistoryOpen} 
+          onClose={() => setIsHistoryOpen(false)} 
+          onSelect={(item) => {
+              setResult({
+                  coords: item.coords,
+                  placeName: item.placeName,
+                  lat: item.lat,
+                  lon: item.lon
+              });
+              // Optional: Clear URL or set it if we stored it
+              setSuccess(true);
+              setTimeout(() => setSuccess(false), 1500);
+          }}
+      />
     </div>
   );
 }

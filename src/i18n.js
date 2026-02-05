@@ -6,6 +6,7 @@ export const I18N = {
         copied: '已複製！',
         pleaseCopyFromShare: '請從 Google 地圖的「分享」功能複製網址',
         coordsNotFound: '找不到座標',
+        invalidUrl: '這不是有效的 Google Maps 網址',
         toggleBtn: 'English',
         infoTitle: '關於 GTC',
         infoBody: `
@@ -14,7 +15,29 @@ export const I18N = {
             <p><strong>🗺️ 快速開啟：</strong><br/>轉換成功後，可一鍵在 <strong>Apple Maps</strong> 或 <strong>NAVER Maps</strong> 中開啟該地點進行導航。</p>
             <p><strong>📋 複製座標：</strong><br/>點擊座標文字即可複製到剪貼簿。</p>
             <p><strong>💡 小提示：</strong><br/>如果轉換失敗，請確認您使用的是 Google 地圖的「分享」連結，而非直接複製網址列。若確認無誤，請嘗試重新轉換一次。</p>
-        `
+        `,
+        history: '歷史紀錄',
+        favorites: '我的最愛',
+        clear: '清除',
+        noHistory: '暫無歷史紀錄',
+        noFavorites: '暫無收藏地點',
+        addedToFav: '已加入收藏',
+        removedFromFav: '已移除收藏',
+        shareLink: '分享連結',
+        linkCopied: '連結已複製！',
+        distanceFromYou: '距您',
+        calculating: '定位中...',
+        showDistance: '顯示距離',
+        locError: '重試定位',
+        weather: {
+            clear: '晴朗',
+            cloudy: '多雲',
+            fog: '霧',
+            rain: '下雨',
+            snow: '下雪',
+            storm: '暴風雨',
+            unknown: '未知'
+        }
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -23,6 +46,7 @@ export const I18N = {
         copied: 'Copied!',
         pleaseCopyFromShare: 'Please copy the URL using the Share function in Google Maps',
         coordsNotFound: 'Coords not found',
+        invalidUrl: 'Not a valid Google Maps URL',
         toggleBtn: '中文',
         infoTitle: 'About GTC',
         infoBody: `
@@ -31,6 +55,28 @@ export const I18N = {
             <p><strong>🗺️ Quick Navigation:</strong><br/>After conversion, open the location directly in <strong>Apple Maps</strong> or <strong>NAVER Maps</strong> for navigation.</p>
             <p><strong>📋 Copy Coordinates:</strong><br/>Click on the coordinates text to copy to clipboard.</p>
             <p><strong>💡 Tip:</strong><br/>If conversion fails, please ensure you are using the link from Google Maps' "Share" function, not the address bar. If confirmed, please try converting again.</p>
-        `
+        `,
+        history: 'History',
+        favorites: 'Favorites',
+        clear: 'Clear',
+        noHistory: 'No recent history',
+        noFavorites: 'No favorites yet',
+        addedToFav: 'Added to Favorites',
+        removedFromFav: 'Removed from Favorites',
+        shareLink: 'Share Link',
+        linkCopied: 'Link copied to clipboard!',
+        distanceFromYou: 'Distance from you',
+        calculating: 'Locating...',
+        showDistance: 'Show Distance',
+        locError: 'Retry Location',
+        weather: {
+            clear: 'Clear',
+            cloudy: 'Cloudy',
+            fog: 'Fog',
+            rain: 'Rain',
+            snow: 'Snow',
+            storm: 'Storm',
+            unknown: 'Unknown'
+        }
     }
 };

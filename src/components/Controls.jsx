@@ -2,7 +2,7 @@ import React from 'react';
 import { useStore } from '../store';
 import { I18N } from '../i18n';
 
-export default function Controls({ onInfoClick }) {
+export default function Controls({ onInfoClick, onHistoryClick }) {
   const { theme, toggleTheme, lang, toggleLang } = useStore();
   const t = I18N[lang];
     
@@ -39,6 +39,16 @@ export default function Controls({ onInfoClick }) {
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="16" x2="12" y2="12"></line>
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
+
+      <button 
+        className="fixed top-6 left-[120px] bg-surface-button backdrop-blur-xl shadow-ios border-[0.5px] border-ios-border rounded-full w-10 h-10 flex items-center justify-center cursor-pointer transition-all duration-300 z-50 hover:bg-surface-button-hover text-text-primary active:scale-90"
+        onClick={onHistoryClick}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
       </button>
 

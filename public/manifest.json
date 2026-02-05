@@ -1,0 +1,20 @@
+{
+  "name": "GTC - Maps Coords API",
+  "short_name": "GTC",
+  "description": "Convert Google Maps URLs to Coordinates",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
