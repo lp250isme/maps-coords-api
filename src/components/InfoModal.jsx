@@ -21,7 +21,7 @@ export default function InfoModal({ isOpen, onClose }) {
     >
         <div 
             className={`
-                bg-ios-card/80 backdrop-blur-2xl rounded-[26px] border border-ios-border/50
+                bg-ios-card backdrop-blur-2xl rounded-[26px] border border-ios-border
                 w-full max-w-[360px] max-h-[80vh] overflow-y-auto p-6 text-left relative shadow-ios-lg
                 transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
                 ${isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}

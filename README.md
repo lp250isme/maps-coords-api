@@ -27,7 +27,7 @@ A powerful tool to convert Google Maps URLs into precise coordinates (Latitude, 
   - **Apple Maps**: one-click navigation.
   - **Naver Map**: Deep integration using `nmap://place` with name and app source preservation.
 - **i18n**: Support **English** and **Traditional Chinese** with language toggle button.
-- **User Friendly**: Custom error messages guiding users to use the "Share" link if extraction fails.
+- **User Friendly**: Custom error messages guiding users to use the "Share" link instead of the address bar if extraction fails.
 
 ### Usage
 
@@ -89,7 +89,7 @@ npm run dev
   - **Apple Maps**：一鍵導航。
   - **Naver Map**：使用 `nmap://place` 進行深度整合，保留地點名稱與來源應用程式資訊。
 - **多語系支援**：支援 **英文** 與 **繁體中文**，並提供語言切換按鈕。
-- **使用者友善**：若提取失敗，會顯示自訂錯誤訊息，引導使用者使用「分享」連結。
+- **使用者友善**：若提取失敗，會顯示自訂小提示，引導使用者使用 Google 地圖的「分享」連結而非直接複製網址列。
 
 ### 使用説明
 

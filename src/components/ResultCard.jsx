@@ -20,13 +20,13 @@ export default function ResultCard({ result }) {
   const naverUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`; 
 
   return (
-    <div id="resultCard" className="mt-6 p-6 bg-surface-card backdrop-blur-2xl shadow-ios-lg rounded-[28px] animate-slide-up w-full text-left transition-all duration-300 border border-ios-border/50">
+    <div id="resultCard" className="mt-6 p-6 bg-surface-card backdrop-blur-2xl shadow-ios-lg rounded-[28px] animate-slide-up w-full text-left transition-all duration-300 border border-ios-border">
         <h2 className="text-xl font-semibold mb-1 text-text-primary" id="placeName">
             {placeName}
         </h2>
         
         <div 
-            className="text-base text-primary-blue mb-4 cursor-pointer active:opacity-60 transition-opacity duration-200 select-none"
+            className="text-base text-ios-blue mb-4 cursor-pointer active:opacity-60 transition-opacity duration-200 select-none font-medium"
             onClick={handleCopy}
             title="Click to copy"
         >

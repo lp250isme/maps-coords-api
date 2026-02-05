@@ -13,7 +13,7 @@ export const I18N = {
             <p><strong>🔗 使用方式：</strong><br/>從 Google Maps 複製地點的分享連結，貼上後點擊「轉換」即可取得精確座標。</p>
             <p><strong>🗺️ 快速開啟：</strong><br/>轉換成功後，可一鍵在 <strong>Apple Maps</strong> 或 <strong>NAVER Maps</strong> 中開啟該地點進行導航。</p>
             <p><strong>📋 複製座標：</strong><br/>點擊座標文字即可複製到剪貼簿。</p>
-            <p><strong>💡 小提示：</strong><br/>如果轉換失敗，請使用 Google 地圖的「分享」功能來取得連結，而非直接複製網址列。</p>
+            <p><strong>💡 小提示：</strong><br/>如果轉換失敗，請確認您使用的是 Google 地圖的「分享」連結，而非直接複製網址列。若確認無誤，請嘗試重新轉換一次。</p>
         `
     },
     'en': {
@@ -30,7 +30,7 @@ export const I18N = {
             <p><strong>🔗 How to use:</strong><br/>Copy a location's share link from Google Maps, paste it, and click "Convert" to get precise coordinates.</p>
             <p><strong>🗺️ Quick Navigation:</strong><br/>After conversion, open the location directly in <strong>Apple Maps</strong> or <strong>NAVER Maps</strong> for navigation.</p>
             <p><strong>📋 Copy Coordinates:</strong><br/>Click on the coordinates text to copy to clipboard.</p>
-            <p><strong>💡 Tip:</strong><br/>If conversion fails, use Google Maps' "Share" function to get the link instead of copying directly from the address bar.</p>
+            <p><strong>💡 Tip:</strong><br/>If conversion fails, please ensure you are using the link from Google Maps' "Share" function, not the address bar. If confirmed, please try converting again.</p>
         `
     }
 };
