@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Maps Coords</title>
+    <!-- Updated Title and Icon -->
+    <title>GToC</title>
+    <link rel="icon" type="image/png" href="/icon.png">
+    <link rel="apple-touch-icon" href="/icon.png">
+    
     <style>
         :root {
             --glass-bg: rgba(255, 255, 255, 0.65);
@@ -25,7 +29,14 @@
                 --text-secondary: #86868b;
             }
             body {
-                background: linear-gradient(135deg, #2c3e50, #000000) !important;
+                /* Dark mesh gradient */
+                background: 
+                    radial-gradient(at 0% 0%, hsla(253,16%,15%,1) 0, transparent 50%), 
+                    radial-gradient(at 50% 0%, hsla(225,39%,20%,1) 0, transparent 50%), 
+                    radial-gradient(at 100% 0%, hsla(339,49%,20%,1) 0, transparent 50%) !important;
+                background-color: #1a1a1a !important; /* Fallback */
+                background-size: 200% 200% !important;
+                animation: gradientBG 15s ease infinite !important;
             }
         }
 
@@ -74,11 +85,20 @@
             transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
+        .app-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
         h1 {
             font-size: 24px;
             font-weight: 600;
             margin-bottom: 8px;
             letter-spacing: -0.5px;
+            margin-top: 0;
         }
 
         p.subtitle {
@@ -243,17 +263,19 @@
 
         .error-msg {
             color: #ff3b30;
-            font-size: 13px;
-            margin-top: 10px;
+            font-size: 14px;
+            margin-top: 15px;
             display: none;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Maps Coords</h1>
-    <p class="subtitle">Convert URLs to Coordinates</p>
+    <img src="/icon.png" alt="Icon" class="app-icon">
+    <h1>GToC</h1>
+    <p class="subtitle" id="lblSubtitle">Convert URLs to Coordinates</p>
 
     <div class="input-group">
         <input type="text" id="urlInput" placeholder="Paste Google Maps URL here..." spellcheck="false" autocomplete="off">
@@ -285,17 +307,55 @@
 </div>
 
 <script>
+    // i18n Dictionary
+    const I18N = {
+        'zh-TW': {
+            subtitle: '快速將 Google Maps 網址轉為經緯度',
+            placeholder: '在此貼上 Google Maps 網址...',
+            convert: '轉換',
+            errorFetching: '無法取得座標',
+            unknownPlace: '未知地點',
+            copied: '已複製！',
+            pleaseCopyFromShare: '請從 Google 地圖的「分享」功能複製網址',
+            coordsNotFound: '找不到座標'
+        },
+        'en': {
+            subtitle: 'Convert URLs to Coordinates',
+            placeholder: 'Paste Google Maps URL here...',
+            convert: 'Convert',
+            errorFetching: 'Failed to fetch coordinates',
+            unknownPlace: 'Unknown Place',
+            copied: 'Copied!',
+            pleaseCopyFromShare: 'Please copy the URL using the Share function in Google Maps',
+            coordsNotFound: 'Coords not found'
+        }
+    };
+
+    // Detect Language
+    const userLang = navigator.language || navigator.userLanguage;
+    const isZh = userLang.toLowerCase().includes('zh') || userLang.toLowerCase().includes('tw');
+    const lang = isZh ? 'zh-TW' : 'en';
+    const t = I18N[lang];
+
+    // UI Elements
     const urlInput = document.getElementById('urlInput');
     const convertBtn = document.getElementById('convertBtn');
     const loader = document.getElementById('loader');
     const resultCard = document.getElementById('resultCard');
     const errorMsg = document.getElementById('errorMsg');
+    const subtitleEl = document.getElementById('lblSubtitle');
     
     // Output Elements
     const placeNameEl = document.getElementById('placeName');
     const coordsEl = document.getElementById('coordsDisplay');
     const btnApple = document.getElementById('btnApple');
     const btnNaver = document.getElementById('btnNaver');
+
+    // Apply translations
+    document.documentElement.lang = lang;
+    subtitleEl.textContent = t.subtitle;
+    urlInput.placeholder = t.placeholder;
+    convertBtn.textContent = t.convert;
 
     async function convert() {
         const url = urlInput.value.trim();
@@ -308,51 +368,41 @@
         loader.style.display = 'flex';
 
         try {
-            // Call our API
-            // Note: Since we configured vercel.json rewrites, the API is at /api
             const res = await fetch(`/api?url=${encodeURIComponent(url)}`);
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || 'Failed to fetch coordinates');
+                // If specific Coords not found error, use custom friendly message
+                if (data.error === 'Coords not found' || res.status === 404) {
+                     throw new Error(t.pleaseCopyFromShare);
+                }
+                throw new Error(data.error || t.errorFetching);
             }
 
-            // Success
             const { coords, placeName } = data;
+            
+            // Critical Fix: Null check for coords
+            if (!coords) {
+                // Return success but no coords? Treat as error for this tool.
+                throw new Error(t.pleaseCopyFromShare);
+            }
+
             const [lat, lon] = coords.replace(/\s/g, '').split(',');
 
             // Update UI
-            placeNameEl.textContent = placeName || 'Unknown Place';
+            placeNameEl.textContent = placeName || t.unknownPlace;
             coordsEl.textContent = coords;
 
-            // Generate Links
-            // Apple Maps: http://maps.apple.com/?q=Label&ll=lat,lon
-            // q = search term (label), ll = explicit lat long center
-            // const appleUrl = `http://maps.apple.com/?ll=${lat},${lon}&q=${encodeURIComponent(placeName || 'Location')}`;
-            // Use query format which is safer for dropping pins
             const appleUrl = `http://maps.apple.com/?q=${lat},${lon}`;
-            
-            // Naver Map
-            // Mobile deep link: nmap://map?lat={lat}&lng={lng}&appname={bundleId}
-            // Web fallback: https://map.naver.com/v5/?c={lng},{lat},15,0,0,0,dh
-            // Since this runs in browser, prioritizing web url or universal link is safer, 
-            // but user asked for "App shortcut". 
-            // Let's try the mobile schema for standard behavior, but if on desktop it might fail.
-            // Better to use universal link logic or just web link that redirects.
-            // Naver Web: https://map.naver.com/p/search/${lat},${lon} (New version)
-            // Or schema: nmap://place?lat={lat}&lng={lng}&name={name}
             const naverUrl = `nmap://map?lat=${lat}&lng=${lon}&appname=com.maps_coords_api.web`; 
-            // Better fallback for desktop users?
-            // Actually, let's keep it simple. If user wants "App shortcut", nmap:// implies the app.
             
             btnApple.href = appleUrl;
             btnNaver.href = naverUrl;
             
-            // Allow copy
             coordsEl.onclick = () => {
                 navigator.clipboard.writeText(coords);
                 const originalText = coordsEl.textContent;
-                coordsEl.textContent = 'Copied!';
+                coordsEl.textContent = t.copied;
                 setTimeout(() => coordsEl.textContent = originalText, 1500);
             };
 
@@ -367,13 +417,9 @@
         }
     }
 
-    // Enter key support
     urlInput.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             convert();
         }
     });
 </script>
-
-</body>
-</html>
