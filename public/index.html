@@ -76,7 +76,7 @@
         .container {
             width: 100%;
             max-width: 500px;
-            padding: 80px 24px 40px 24px;
+            padding: 60px 24px 40px 24px;
             text-align: center;
             margin: 0 auto;
         }
@@ -186,30 +186,65 @@
         p.subtitle {
             font-size: 14px;
             color: var(--text-secondary);
-            margin-bottom: 32px;
+            margin-bottom: 20px;
             margin-top: 0;
         }
 
         .input-group {
             position: relative;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            background: rgba(120, 120, 128, 0.08);
+            border-radius: 16px;
+            padding: 0 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .input-group:focus-within {
+            background: rgba(120, 120, 128, 0.12);
+            transform: scale(1.01);
+        }
+        
+        .input-icon {
+            width: 20px;
+            height: 20px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+        
+        .clear-btn {
+            background: rgba(120, 120, 128, 0.3);
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            line-height: 20px;
+            color: var(--text-primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            display: none;
+            padding: 0;
+            transition: all 0.2s ease;
+        }
+        
+        .clear-btn:hover {
+            background: rgba(120, 120, 128, 0.5);
+        }
+        
+        .clear-btn.visible {
+            display: block;
         }
 
         input[type="text"] {
-            width: 100%;
-            padding: 16px 20px;
+            flex: 1;
+            padding: 16px 12px;
             font-size: 16px;
-            border-radius: 16px;
-            border: 1px solid transparent;
-            background: rgba(120, 120, 128, 0.08); /* Apple system gray 5/6-ish */
+            border: none;
+            background: transparent;
             color: var(--text-primary);
             outline: none;
-            transition: all 0.2s ease;
-        }
-
-        input[type="text"]:focus {
-            background: rgba(120, 120, 128, 0.12); /* Slightly darker on focus */
-            transform: scale(1.01);
         }
         
         input[type="text"]::placeholder {
@@ -242,7 +277,7 @@
 
         /* Result Card */
         .result-card {
-            margin-top: 30px;
+            margin-top: 20px;
             padding: 20px;
             background: rgba(255, 255, 255, 0.05); /* Very subtle internal card */
             border-radius: 18px;
@@ -397,7 +432,12 @@
     <p class="subtitle" id="lblSubtitle">Convert URLs to Coordinates</p>
 
     <div class="input-group">
+        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
         <input type="text" id="urlInput" placeholder="Paste Google Maps URL here..." spellcheck="false" autocomplete="off">
+        <button class="clear-btn" id="clearBtn" type="button">&times;</button>
     </div>
 
     <button class="primary-btn" id="convertBtn" onclick="convert()">Convert</button>
@@ -419,7 +459,7 @@
             </a>
             <a href="#" id="btnNaver" class="shortcut-btn naver-maps" target="_blank">
                 <img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" class="shortcut-icon naver-icon" alt="NAVER">
-                NAVER Map
+                NAVER Maps
             </a>
         </div>
         
@@ -477,6 +517,7 @@
     const langToggleBtn = document.getElementById('langToggle');
     const themeToggleBtn = document.getElementById('themeToggle');
     const mapFrame = document.getElementById('mapFrame');
+    const clearBtn = document.getElementById('clearBtn');
     
     // Output Elements
     const placeNameEl = document.getElementById('placeName');
@@ -564,8 +605,8 @@
             btnApple.href = appleUrl;
             btnNaver.href = naverUrl;
             
-            // Map Preview using OpenStreetMap
-            mapFrame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lon)-0.01},${parseFloat(lat)-0.01},${parseFloat(lon)+0.01},${parseFloat(lat)+0.01}&layer=mapnik&marker=${lat},${lon}`;
+            // Map Preview using Google Maps embed
+            mapFrame.src = `https://www.google.com/maps?q=${lat},${lon}&z=15&output=embed`;
             
             coordsEl.onclick = () => {
                 navigator.clipboard.writeText(coords);
@@ -589,6 +630,21 @@
         if (e.key === 'Enter') {
             convert();
         }
+    });
+    
+    // Clear button visibility
+    urlInput.addEventListener('input', function() {
+        if (urlInput.value.length > 0) {
+            clearBtn.classList.add('visible');
+        } else {
+            clearBtn.classList.remove('visible');
+        }
+    });
+    
+    clearBtn.addEventListener('click', function() {
+        urlInput.value = '';
+        clearBtn.classList.remove('visible');
+        urlInput.focus();
     });
 </script>
 
