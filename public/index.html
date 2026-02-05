@@ -76,9 +76,12 @@
         .container {
             width: 100%;
             max-width: 500px;
-            padding: 60px 24px 40px 24px;
+            padding: 100px 24px 40px 24px;
             text-align: center;
             margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .lang-toggle {
@@ -298,17 +301,29 @@
             position: relative;
             margin-bottom: 20px;
             display: flex;
+            align-items: stretch;
+            gap: 12px;
+            height: 52px;
+        }
+        
+        .input-wrapper {
+            flex: 1;
+            display: flex;
             align-items: center;
             background: rgba(120, 120, 128, 0.08);
             border-radius: 16px;
             padding: 0 16px;
             transition: all 0.2s ease;
+            width: 100%; /* Ensure it takes full width initially */
+            min-width: 0; /* Allow flex shrinking if absolutely needed but width:100% helps */
         }
         
-        .input-group:focus-within {
+        .input-wrapper:focus-within {
             background: rgba(120, 120, 128, 0.12);
             transform: scale(1.01);
         }
+        
+
         
         .input-icon {
             width: 20px;
@@ -343,12 +358,15 @@
 
         input[type="text"] {
             flex: 1;
-            padding: 16px 12px;
+            padding: 0 12px;
             font-size: 16px;
             border: none;
             background: transparent;
             color: var(--text-primary);
             outline: none;
+            width: 100%;
+            min-width: 0;
+            height: 100%;
         }
         
         input[type="text"]::placeholder {
@@ -356,17 +374,55 @@
         }
 
         button.primary-btn {
-            width: 100%;
-            padding: 16px;
-            font-size: 16px;
+            width: 52px;
+            padding: 0;
+            font-size: 20px;
             font-weight: 600;
             color: white;
             background-color: var(--primary-blue);
             border: none;
             border-radius: 16px;
             cursor: pointer;
-            transition: transform 0.1s ease, background-color 0.2s;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%; /* Match parent height */
+        }
+        
+        button.primary-btn.success-state {
+            background-color: var(--naver-green);
+            box-shadow: 0 4px 12px rgba(3, 199, 90, 0.3);
+            transform: scale(1.05);
+        }
+        
+        /* Button Icons */
+        .btn-icon-arrow, .btn-icon-check {
+            width: 24px;
+            height: 24px;
+            stroke-width: 2.5;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-icon-check {
+            display: none;
+        }
+
+        /* Button Spinner */
+        .btn-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         button.primary-btn:active {
@@ -457,10 +513,6 @@
             box-shadow: 0 4px 12px rgba(3, 199, 90, 0.3);
         }
         
-        svg {
-            margin-right: 6px;
-        }
-
         /* Loader */
         .loader {
             display: none;
@@ -536,18 +588,25 @@
     <h1>GTC</h1>
 
     <div class="input-group">
-        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-        </svg>
-        <input type="text" id="urlInput" placeholder="Paste Google Maps URL here..." spellcheck="false" autocomplete="off">
-        <button class="clear-btn" id="clearBtn" type="button">&times;</button>
-    </div>
-
-    <button class="primary-btn" id="convertBtn" onclick="convert()">Convert</button>
-
-    <div class="loader" id="loader">
-        <div class="spinner"></div>
+        <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+             <!-- Div around input to hold layout stable if needed, but flex:1 on input works well if min-width:0 -->
+            <input type="text" id="urlInput" placeholder="Paste Google Maps URL here..." spellcheck="false" autocomplete="off">
+            <button class="clear-btn" id="clearBtn" type="button">&times;</button>
+        </div>
+        <button class="primary-btn" id="convertBtn" onclick="convert()">
+            <svg class="btn-icon-arrow" id="iconArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+            <svg class="btn-icon-check" id="iconCheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <div class="btn-spinner" id="btnSpinner"></div>
+        </button>
     </div>
 
     <p class="error-msg" id="errorMsg"></p>
@@ -589,7 +648,6 @@
     const I18N = {
         'zh-TW': {
             placeholder: '在此貼上 Google Maps 網址...',
-            convert: '轉換',
             errorFetching: '無法取得座標',
             unknownPlace: '未知地點',
             copied: '已複製！',
@@ -607,7 +665,6 @@
         },
         'en': {
             placeholder: 'Paste Google Maps URL here...',
-            convert: 'Convert',
             errorFetching: 'Failed to fetch coordinates',
             unknownPlace: 'Unknown Place',
             copied: 'Copied!',
@@ -639,7 +696,9 @@
     // UI Elements
     const urlInput = document.getElementById('urlInput');
     const convertBtn = document.getElementById('convertBtn');
-    const loader = document.getElementById('loader');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const iconArrow = document.getElementById('iconArrow');
+    const iconCheck = document.getElementById('iconCheck');
     const resultCard = document.getElementById('resultCard');
     const errorMsg = document.getElementById('errorMsg');
     const langToggleBtn = document.getElementById('langToggle');
@@ -662,7 +721,6 @@
         const t = I18N[currentLang];
         document.documentElement.lang = currentLang;
         urlInput.placeholder = t.placeholder;
-        convertBtn.textContent = t.convert;
         langToggleBtn.textContent = t.toggleBtn;
         modalTitle.textContent = t.infoTitle;
         modalBody.innerHTML = t.infoBody;
@@ -706,7 +764,13 @@
         resultCard.style.display = 'none';
         errorMsg.style.display = 'none';
         convertBtn.disabled = true;
-        loader.style.display = 'flex';
+        
+        // Show loading state
+        iconArrow.style.display = 'none';
+        iconCheck.style.display = 'none';
+        btnSpinner.style.display = 'block';
+        convertBtn.classList.remove('success-state');
+        
         mapFrame.src = '';
 
         try {
@@ -749,14 +813,28 @@
                 setTimeout(() => coordsEl.textContent = originalText, 1500);
             };
 
+            // Success State Animation
             resultCard.style.display = 'block';
+            btnSpinner.style.display = 'none';
+            iconCheck.style.display = 'block';
+            convertBtn.classList.add('success-state');
+            
+            // Revert after 1.5s
+            setTimeout(() => {
+                convertBtn.disabled = false;
+                convertBtn.classList.remove('success-state');
+                iconCheck.style.display = 'none';
+                iconArrow.style.display = 'block';
+            }, 1500);
 
         } catch (err) {
             errorMsg.textContent = err.message;
             errorMsg.style.display = 'block';
-        } finally {
+            
+            // Error State Revert
             convertBtn.disabled = false;
-            loader.style.display = 'none';
+            btnSpinner.style.display = 'none';
+            iconArrow.style.display = 'block';
         }
     }
 
