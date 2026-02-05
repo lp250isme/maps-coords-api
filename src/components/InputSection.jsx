@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useStore } from '../store';
 import { I18N } from '../i18n';
 
-export default function InputSection({ url, setUrl }) {
+export default function InputSection({ url, setUrl, onAutoPaste }) {
   const { lang } = useStore();
   const t = I18N[lang];
   const inputRef = useRef(null);
@@ -19,10 +19,21 @@ export default function InputSection({ url, setUrl }) {
       if (!url && navigator.clipboard) {
           try {
               const text = await navigator.clipboard.readText();
-              if (text) setUrl(text);
+              if (text) {
+                  setUrl(text);
+                  // Allow state to update then trigger auto-convert check
+                  if (onAutoPaste) onAutoPaste(text);
+              }
           } catch (err) {
               console.log('Clipboard access denied or empty');
           }
+      }
+  };
+
+  const handlePaste = (e) => {
+      const text = e.clipboardData.getData('text');
+      if (text && onAutoPaste) {
+          onAutoPaste(text);
       }
   };
 
@@ -41,6 +52,7 @@ export default function InputSection({ url, setUrl }) {
             type="text" 
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onPaste={handlePaste}
             onKeyDown={(e) => {
                 if(e.key === 'Enter') {
                     // Trigger convert from parent button check if needed, 

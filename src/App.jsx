@@ -18,6 +18,7 @@ function App() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const lastConvertedUrl = React.useRef('');
 
   useEffect(() => {
     initTheme();
@@ -62,6 +63,8 @@ function App() {
         lon
       });
       
+      lastConvertedUrl.current = url.trim();
+      
       setSuccess(true);
       setTimeout(() => setSuccess(false), 1500);
 
@@ -81,7 +84,19 @@ function App() {
       <Header />
       
       <div className="input-group relative mb-5 flex items-stretch gap-3 h-[52px]">
-        <InputSection url={url} setUrl={setUrl} />
+        <InputSection 
+            url={url} 
+            setUrl={setUrl} 
+            onAutoPaste={(pastedText) => {
+                if (pastedText && pastedText.trim() !== lastConvertedUrl.current) {
+                    // Slight timeout to allow state to settle if needed, but we can also
+                    // call conversion directly with the pasted text if we refactor handleConvert
+                    // For now, let's update state then trigger.
+                    setUrl(pastedText);
+                    setTimeout(() => document.getElementById('convertBtn')?.click(), 100);
+                }
+            }}
+        />
         <ConvertButton 
             onClick={handleConvert} 
             loading={isLoading} 
