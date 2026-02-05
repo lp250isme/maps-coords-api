@@ -394,7 +394,11 @@
             coordsEl.textContent = coords;
 
             const appleUrl = `http://maps.apple.com/?q=${lat},${lon}`;
-            const naverUrl = `nmap://map?lat=${lat}&lng=${lon}&appname=com.maps_coords_api.web`; 
+            
+            // Updated Naver Map URL format
+            // nmap://place?lat={lat}&lng={lng}&name={name}&appname={appname}
+            const encodedName = encodeURIComponent(placeName || 'Location');
+            const naverUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`; 
             
             btnApple.href = appleUrl;
             btnNaver.href = naverUrl;
