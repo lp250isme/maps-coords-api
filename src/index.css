@@ -4,60 +4,66 @@
 
 @layer base {
   :root {
-    --glass-bg: rgba(255, 255, 255, 0.65);
-    --glass-border: rgba(255, 255, 255, 0.5);
-    --primary-blue: #007AFF;
-    --text-primary: #1D1D1f;
-    --text-secondary: #86868b;
-    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    /* iOS System Colors - Light */
+    --ios-bg: #F2F2F7;
+    --ios-card: rgba(255, 255, 255, 0.72);
+    --ios-card-border: rgba(255, 255, 255, 0.5);
+    
+    --ios-blue: #007AFF;
+    --ios-gray: #8E8E93;
+    --ios-text-primary: #000000;
+    --ios-text-secondary: #3C3C4399; /* 60% opacity */
+    
+    /* Semantic Inputs */
+    --input-bg: rgba(118, 118, 128, 0.12); /* iOS Search Bar fill */
+    --input-bg-focus: rgba(118, 118, 128, 0.24);
 
-    /* Semantic System */
-    --bg-card: rgba(255, 255, 255, 0.6);
-    --bg-input: rgba(255, 255, 255, 0.6);
-    --bg-input-focus: rgba(255, 255, 255, 0.8);
-    --bg-button: rgba(255, 255, 255, 0.6);
-    --bg-button-hover: rgba(255, 255, 255, 0.8);
+    /* Shadows */
+    --shadow-ios: 0 4px 24px rgba(0, 0, 0, 0.06);
+    --shadow-ios-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
   }
 
   .dark {
-    --glass-bg: rgba(30, 30, 30, 0.65);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --text-primary: #F5F5F7;
-    --text-secondary: #86868b;
+    /* iOS System Colors - Dark */
+    --ios-bg: #000000;
+    --ios-card: rgba(30, 30, 30, 0.72);
+    --ios-card-border: rgba(255, 255, 255, 0.1);
+    
+    --ios-blue: #0A84FF;
+    --ios-gray: #98989D;
+    --ios-text-primary: #FFFFFF;
+    --ios-text-secondary: #EBEBF599; /* 60% opacity */
 
-    /* Semantic System - Dark */
-    --bg-card: rgba(255, 255, 255, 0.05);
-    --bg-input: rgba(120, 120, 128, 0.2);
-    --bg-input-focus: rgba(120, 120, 128, 0.3);
-    --bg-button: rgba(120, 120, 128, 0.2);
-    --bg-button-hover: rgba(120, 120, 128, 0.4);
+    /* Semantic Inputs */
+    --input-bg: rgba(118, 118, 128, 0.24);
+    --input-bg-focus: rgba(118, 118, 128, 0.36);
   }
   
   body {
-    @apply min-h-screen flex justify-center items-center font-sans bg-cover bg-center;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    background: 
-        radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-        radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-        radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-    background-size: 200% 200%;
-    animation: gradientBG 15s ease infinite;
-    padding-bottom: 15vh;
+    @apply min-h-screen flex justify-center items-center font-sans bg-cover bg-center antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    
+    /* Mesh Gradient Background */
+    background-color: var(--ios-bg);
+    background-image: 
+        radial-gradient(at 0% 0%, hsla(210, 100%, 90%, 0.8) 0, transparent 50%), 
+        radial-gradient(at 100% 0%, hsla(190, 100%, 85%, 0.5) 0, transparent 50%), 
+        radial-gradient(at 50% 100%, hsla(250, 60%, 90%, 0.6) 0, transparent 50%);
+    background-size: 150% 150%;
+    animation: gradientBG 20s ease infinite alternate;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .dark body {
+    background-color: #000000;
     background-image: 
-        radial-gradient(at 0% 0%, hsla(253,16%,15%,1) 0, transparent 50%), 
-        radial-gradient(at 50% 0%, hsla(225,39%,20%,1) 0, transparent 50%), 
-        radial-gradient(at 100% 0%, hsla(339,49%,20%,1) 0, transparent 50%);
-    background-color: #1a1a1a;
-    background-size: 200% 200%;
+        radial-gradient(at 0% 0%, hsla(220, 40%, 20%, 0.8) 0, transparent 60%), 
+        radial-gradient(at 100% 0%, hsla(260, 40%, 25%, 0.6) 0, transparent 50%), 
+        radial-gradient(at 50% 100%, hsla(200, 40%, 20%, 0.4) 0, transparent 50%);
   }
 }
 
 @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
 }

@@ -9,21 +9,21 @@ export default function Controls({ onInfoClick }) {
   return (
     <>
       <button 
-        className="fixed top-5 left-5 bg-surface-button border-none rounded-xl w-8 h-8 text-sm flex items-center justify-center p-0 cursor-pointer transition-all duration-200 z-50 hover:bg-surface-button-hover text-text-primary active:scale-90"
+        className="fixed top-6 left-6 bg-surface-button backdrop-blur-xl shadow-ios border-[0.5px] border-ios-border rounded-full w-10 h-10 text-lg flex items-center justify-center cursor-pointer transition-all duration-300 z-50 hover:bg-surface-button-hover text-text-primary active:scale-90"
         onClick={toggleTheme}
       >
         {theme === 'dark' ? '☀️' : '🌙'}
       </button>
 
       <button 
-        className="fixed top-5 left-[60px] bg-surface-button border-none rounded-xl w-8 h-8 text-sm flex items-center justify-center p-0 cursor-pointer transition-all duration-200 z-50 hover:bg-surface-button-hover text-text-primary active:scale-90"
+        className="fixed top-6 left-[72px] bg-surface-button backdrop-blur-xl shadow-ios border-[0.5px] border-ios-border rounded-full w-10 h-10 text-lg flex items-center justify-center cursor-pointer transition-all duration-300 z-50 hover:bg-surface-button-hover text-text-primary active:scale-90"
         onClick={onInfoClick}
       >
         ℹ️
       </button>
 
       <button 
-        className="fixed top-5 right-5 bg-surface-button border-none rounded-xl py-1.5 px-2.5 text-xs font-medium text-text-secondary cursor-pointer transition-all duration-200 z-50 hover:bg-surface-button-hover hover:text-text-primary active:scale-95"
+        className="fixed top-6 right-6 bg-surface-button backdrop-blur-xl shadow-ios border-[0.5px] border-ios-border rounded-full px-4 h-10 text-sm font-semibold text-text-secondary cursor-pointer transition-all duration-300 z-50 hover:bg-surface-button-hover hover:text-text-primary active:scale-95 flex items-center"
         onClick={toggleLang}
       >
         {t.toggleBtn}

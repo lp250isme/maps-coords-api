@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useStore } from './store';
 import { I18N } from './i18n';
 import Header from './components/Header';
@@ -37,16 +38,12 @@ function App() {
     // In React we just conditionally render or update props
 
     try {
-      const res = await fetch(`/api?url=${encodeURIComponent(url.trim())}`);
-      const data = await res.json();
+      const res = await axios.get('/api', {
+        params: { url: url.trim() }
+      });
+      const data = res.data;
 
-      if (!res.ok) {
-        if (data.error === 'Coords not found' || res.status === 404) {
-           throw new Error(t.pleaseCopyFromShare);
-        }
-        throw new Error(data.error || t.errorFetching);
-      }
-
+      // axios throws on non-2xx by default, but we'll check just in case or handle catch block
       const { coords, placeName } = data;
       
       if (!coords) {
@@ -69,7 +66,17 @@ function App() {
       setTimeout(() => setSuccess(false), 1500);
 
     } catch (err) {
-      setError(err.message);
+      // Axios error handling
+      if (err.response) {
+          const { status, data } = err.response;
+          if (status === 404 || data.error === 'Coords not found') {
+              setError(t.pleaseCopyFromShare);
+          } else {
+              setError(data.error || t.errorFetching);
+          }
+      } else {
+        setError(err.message || t.errorFetching);
+      }
     } finally {
       setIsLoading(false);
     }

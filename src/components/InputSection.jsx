@@ -39,7 +39,7 @@ export default function InputSection({ url, setUrl, onAutoPaste }) {
 
   return (
     <div 
-        className="flex-1 flex items-center bg-surface-input backdrop-blur-md shadow-sm rounded-2xl px-4 transition-all duration-200 w-full min-w-0 overflow-hidden cursor-text focus-within:bg-surface-input-focus active:scale-[0.99] focus-within:active:scale-100"
+        className="flex-1 flex items-center bg-surface-input backdrop-blur-md shadow-ios-lg rounded-[18px] px-3.5 transition-all duration-300 w-full min-w-0 overflow-hidden cursor-text focus-within:bg-surface-input-focus active:scale-[0.98] focus-within:active:scale-100 h-[52px]"
         onClick={handleWrapperClick}
     >
         <svg className="w-5 h-5 text-text-secondary flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -68,14 +68,14 @@ export default function InputSection({ url, setUrl, onAutoPaste }) {
         
         <button 
             className={`
-                bg-surface-button border-none rounded-full w-5 h-5 text-xs flex items-center justify-center text-text-primary cursor-pointer flex-shrink-0 p-0 transition-all duration-200 hover:bg-surface-button-hover
+                bg-ios-gray border-none rounded-full w-5 h-5 text-[10px] flex items-center justify-center text-white cursor-pointer flex-shrink-0 p-0 transition-all duration-200 hover:opacity-80
                 ${url.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}
             `}
             onClick={handleClear}
             type="button"
             tabIndex={url.length > 0 ? 0 : -1}
         >
-            &times;
+            ✕
         </button>
     </div>
   );

@@ -8,22 +8,24 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'glass-bg': 'var(--glass-bg)',
-        'glass-border': 'var(--glass-border)',
-        'primary-blue': 'var(--primary-blue)',
-        'text-primary': 'var(--text-primary)',
-        'text-secondary': 'var(--text-secondary)',
-        'naver-green': '#03C75A',
-        // Semantic System
-        'surface-card': 'var(--bg-card)',
-        'surface-input': 'var(--bg-input)',
-        'surface-input-focus': 'var(--bg-input-focus)',
-        'surface-button': 'var(--bg-button)',
-        'surface-button-hover': 'var(--bg-button-hover)',
+        'ios-bg': 'var(--ios-bg)',
+        'ios-card': 'var(--ios-card)',
+        'ios-border': 'var(--ios-card-border)',
+        'ios-blue': 'var(--ios-blue)',
+        'ios-gray': 'var(--ios-gray)',
+        'text-primary': 'var(--ios-text-primary)',
+        'text-secondary': 'var(--ios-text-secondary)',
+        
+        // Semantic System (Mapped to iOS Variables)
+        'surface-card': 'var(--ios-card)',
+        'surface-input': 'var(--input-bg)',
+        'surface-input-focus': 'var(--input-bg-focus)',
+        'surface-button': 'var(--ios-card)', // Buttons use card material in iOS
+        'surface-button-hover': 'var(--ios-card-border)',
       },
       boxShadow: {
-        'sm': 'var(--shadow-sm)',
-        'lg': 'var(--shadow-lg)',
+        'ios': 'var(--shadow-ios)',
+        'ios-lg': 'var(--shadow-ios-lg)',
       },
       animation: {
         'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
