@@ -17,7 +17,7 @@ export default function Header() {
         </picture>
       )}
       
-      <h1 className="text-2xl font-semibold mb-2 tracking-tighter mt-0 text-text-primary">GTC</h1>
+      <h1 className="text-2xl font-semibold mb-4 tracking-tighter mt-0 text-text-primary">GTC</h1>
     </>
   );
 }

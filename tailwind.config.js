@@ -14,6 +14,12 @@ module.exports = {
         'text-primary': 'var(--text-primary)',
         'text-secondary': 'var(--text-secondary)',
         'naver-green': '#03C75A',
+        // Semantic System
+        'surface-card': 'var(--bg-card)',
+        'surface-input': 'var(--bg-input)',
+        'surface-input-focus': 'var(--bg-input-focus)',
+        'surface-button': 'var(--bg-button)',
+        'surface-button-hover': 'var(--bg-button-hover)',
       },
       boxShadow: {
         'sm': 'var(--shadow-sm)',

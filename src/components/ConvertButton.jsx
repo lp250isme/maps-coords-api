@@ -9,7 +9,8 @@ export default function ConvertButton({ onClick, loading, success, disabled }) {
             cursor-pointer flex flex-shrink-0 items-center justify-center shadow-[0_4px_12px_rgba(0,122,255,0.3)]
             transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
             disabled:bg-text-secondary disabled:opacity-50 disabled:cursor-not-allowed
-            ${success ? 'bg-naver-green shadow-[0_4px_12px_rgba(3,199,90,0.3)] scale-105' : ''}
+            active:scale-95 disabled:active:scale-100
+            ${success ? 'bg-naver-green shadow-[0_4px_12px_rgba(3,199,90,0.3)] scale-105 active:scale-105' : ''}
         `}
         onClick={onClick}
         disabled={disabled}

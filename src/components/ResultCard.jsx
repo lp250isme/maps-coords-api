@@ -20,7 +20,7 @@ export default function ResultCard({ result }) {
   const naverUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`; 
 
   return (
-    <div id="resultCard" className="mt-5 p-5 bg-[rgba(255,255,255,0.05)] rounded-[18px] animate-slide-up w-full text-left">
+    <div id="resultCard" className="mt-5 p-5 bg-surface-card backdrop-blur-md shadow-sm rounded-[18px] animate-slide-up w-full text-left transition-colors duration-300">
         <h2 className="text-xl font-semibold mb-1 text-text-primary" id="placeName">
             {placeName}
         </h2>
@@ -44,7 +44,7 @@ export default function ResultCard({ result }) {
             </a>
         </div>
         
-        <div className="rounded-2xl overflow-hidden border border-[rgba(120,120,128,0.2)] bg-[rgba(120,120,128,0.1)] aspect-[16/9]">
+        <div className="rounded-2xl overflow-hidden border border-surface-button bg-surface-button aspect-[16/9]">
             <iframe 
                 id="mapFrame" 
                 src={`https://www.google.com/maps?q=${lat},${lon}&z=15&output=embed`} 
