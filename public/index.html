@@ -64,6 +64,7 @@
             background-size: 200% 200%;
             animation: gradientBG 15s ease infinite; 
             color: var(--text-primary);
+            padding-bottom: 15vh; /* Visual lift */
         }
         
         @keyframes gradientBG {
@@ -84,6 +85,27 @@
             border: 1px solid var(--glass-border);
             text-align: center;
             transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative; /* For absolute positioning of lang toggle */
+        }
+        
+        .lang-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(120, 120, 128, 0.1);
+            border: none;
+            border-radius: 12px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .lang-toggle:hover {
+            background: rgba(120, 120, 128, 0.2);
+            color: var(--text-primary);
         }
 
         .app-icon {
@@ -274,7 +296,13 @@
 <body>
 
 <div class="container">
-    <img src="/icon.png" alt="Icon" class="app-icon">
+    <button class="lang-toggle" id="langToggle" onclick="toggleLanguage()">EN / 中</button>
+    
+    <picture>
+        <source srcset="/icon-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="/icon.png" alt="Icon" class="app-icon">
+    </picture>
+    
     <h1>GTC</h1>
     <p class="subtitle" id="lblSubtitle">Convert URLs to Coordinates</p>
 
@@ -318,7 +346,8 @@
             unknownPlace: '未知地點',
             copied: '已複製！',
             pleaseCopyFromShare: '請從 Google 地圖的「分享」功能複製網址',
-            coordsNotFound: '找不到座標'
+            coordsNotFound: '找不到座標',
+            toggleBtn: 'English'
         },
         'en': {
             subtitle: 'Convert URLs to Coordinates',
@@ -328,15 +357,18 @@
             unknownPlace: 'Unknown Place',
             copied: 'Copied!',
             pleaseCopyFromShare: 'Please copy the URL using the Share function in Google Maps',
-            coordsNotFound: 'Coords not found'
+            coordsNotFound: 'Coords not found',
+            toggleBtn: '中文'
         }
     };
 
-    // Detect Language
-    const userLang = navigator.language || navigator.userLanguage;
-    const isZh = userLang.toLowerCase().includes('zh') || userLang.toLowerCase().includes('tw');
-    const lang = isZh ? 'zh-TW' : 'en';
-    const t = I18N[lang];
+    // Initialize Language
+    // Check localStorage first, then browser language
+    const savedLang = localStorage.getItem('gtc_lang');
+    const systemLang = (navigator.language || navigator.userLanguage).toLowerCase();
+    const defaultLang = savedLang ? savedLang : (systemLang.includes('zh') || systemLang.includes('tw') ? 'zh-TW' : 'en');
+    
+    let currentLang = defaultLang;
 
     // UI Elements
     const urlInput = document.getElementById('urlInput');
@@ -345,6 +377,7 @@
     const resultCard = document.getElementById('resultCard');
     const errorMsg = document.getElementById('errorMsg');
     const subtitleEl = document.getElementById('lblSubtitle');
+    const langToggleBtn = document.getElementById('langToggle');
     
     // Output Elements
     const placeNameEl = document.getElementById('placeName');
@@ -352,13 +385,36 @@
     const btnApple = document.getElementById('btnApple');
     const btnNaver = document.getElementById('btnNaver');
 
-    // Apply translations
-    document.documentElement.lang = lang;
-    subtitleEl.textContent = t.subtitle;
-    urlInput.placeholder = t.placeholder;
-    convertBtn.textContent = t.convert;
+    function updateLanguage() {
+        const t = I18N[currentLang];
+        document.documentElement.lang = currentLang;
+        
+        // Update Static Text
+        subtitleEl.textContent = t.subtitle;
+        urlInput.placeholder = t.placeholder;
+        convertBtn.textContent = t.convert;
+        langToggleBtn.textContent = t.toggleBtn;
+
+        // If error message is showing, update it (approximated, logic might need precise error tracking to be perfect but good enough)
+        if (errorMsg.style.display === 'block') {
+           // Generally we clear error on lang switch or just let user re-try, but we can leave it
+        }
+        
+        // Save preference
+        localStorage.setItem('gtc_lang', currentLang);
+    }
+    
+    function toggleLanguage() {
+        currentLang = currentLang === 'zh-TW' ? 'en' : 'zh-TW';
+        updateLanguage();
+    }
+
+    // Initial Render
+    updateLanguage();
 
     async function convert() {
+        const t = I18N[currentLang]; // Get current dictionary
+        
         const url = urlInput.value.trim();
         if (!url) return;
 
@@ -428,3 +484,6 @@
         }
     });
 </script>
+
+</body>
+</html>
