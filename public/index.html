@@ -74,25 +74,18 @@
         }
 
         .container {
-            width: 90%;
-            max-width: 440px;
-            padding: 40px 30px;
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 24px;
-            box-shadow: var(--shadow-lg);
-            border: 1px solid var(--glass-border);
+            width: 100%;
+            max-width: 500px;
+            padding: 80px 24px 40px 24px;
             text-align: center;
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative; /* For absolute positioning of lang toggle */
+            margin: 0 auto;
         }
         
         .lang-toggle {
-            position: absolute;
+            position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(120, 120, 128, 0.1);
+            background: rgba(120, 120, 128, 0.2);
             border: none;
             border-radius: 12px;
             padding: 6px 10px;
@@ -101,11 +94,77 @@
             color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.2s ease;
+            z-index: 100;
         }
         
         .lang-toggle:hover {
-            background: rgba(120, 120, 128, 0.2);
+            background: rgba(120, 120, 128, 0.3);
             color: var(--text-primary);
+        }
+        
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(120, 120, 128, 0.2);
+            border: none;
+            border-radius: 12px;
+            padding: 6px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 100;
+        }
+        
+        .theme-toggle:hover {
+            background: rgba(120, 120, 128, 0.3);
+        }
+        
+        /* Manual Dark Mode Override */
+        html.dark-mode {
+            --glass-bg: rgba(30, 30, 30, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #F5F5F7;
+            --text-secondary: #86868b;
+        }
+        html.dark-mode body {
+            background: 
+                radial-gradient(at 0% 0%, hsla(253,16%,15%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,20%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,20%,1) 0, transparent 50%) !important;
+            background-color: #1a1a1a !important;
+            background-size: 200% 200% !important;
+            animation: gradientBG 15s ease infinite !important;
+        }
+        html.dark-mode .apple-maps {
+            background: #3a3a3c;
+            color: white;
+        }
+        html.dark-mode .apple-maps .shortcut-icon {
+            filter: invert(0);
+        }
+        
+        /* Light Mode Override */
+        html.light-mode {
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --text-primary: #1D1D1f;
+            --text-secondary: #86868b;
+        }
+        html.light-mode body {
+            background: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%) !important;
+            background-size: 200% 200% !important;
+            animation: gradientBG 15s ease infinite !important;
+        }
+        html.light-mode .apple-maps {
+            background: white;
+            color: black;
+        }
+        html.light-mode .apple-maps .shortcut-icon {
+            filter: invert(1);
         }
 
         .app-icon {
@@ -219,7 +278,7 @@
 
         .shortcuts {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 12px;
             margin-top: 20px;
         }
@@ -280,9 +339,25 @@
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Icon Placeholders (SVG) */
-        .icon-apple { width: 18px; height: 18px; fill: currentColor; }
-        .icon-naver { width: 18px; height: 18px; fill: white; }
+        /* Shortcut Icon Images */
+        .shortcut-icon { 
+            width: 18px; 
+            height: 18px; 
+            margin-right: 6px;
+            object-fit: contain;
+        }
+        .naver-icon {
+            border-radius: 4px;
+        }
+        /* Apple icon needs filter for light mode */
+        .apple-maps .shortcut-icon {
+            filter: invert(1); /* Make white SVG black for light mode */
+        }
+        @media (prefers-color-scheme: dark) {
+            .apple-maps .shortcut-icon {
+                filter: invert(0); /* Keep white for dark mode */
+            }
+        }
 
         .error-msg {
             color: #ff3b30;
@@ -291,11 +366,26 @@
             display: none;
             line-height: 1.4;
         }
+        
+        /* Map Preview */
+        .map-preview {
+            margin-top: 16px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+        }
+        .map-preview iframe {
+            width: 100%;
+            height: 200px;
+            border: none;
+            display: block;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">🌙</button>
     <button class="lang-toggle" id="langToggle" onclick="toggleLanguage()">EN / 中</button>
     
     <picture>
@@ -324,13 +414,17 @@
 
         <div class="shortcuts">
             <a href="#" id="btnApple" class="shortcut-btn apple-maps" target="_blank">
-                <svg viewBox="0 0 24 24" class="icon-apple"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.07-.5-2.19-.51-3.23.01-1.39.7-2.31.28-3.1-.78C5.26 16.59 4 11.23 7.85 10.95c1.17-.09 2.15.53 2.9.53.76 0 2-.63 3.32-.54 1.25.09 2.37.56 3.09 1.54-2.6 1.4-2.12 5.09.46 6.13-.37.95-.91 1.95-1.57 2.67zM12.03 7.25c-.64 0-1.61-.26-2.09-.76-.55-.57-.96-1.53-.78-2.42 1.05.08 1.97.64 2.45 1.15.51.52.89 1.5.42 2.03z"/></svg>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" class="shortcut-icon" alt="Apple">
                 Apple Maps
             </a>
             <a href="#" id="btnNaver" class="shortcut-btn naver-maps" target="_blank">
-                <svg viewBox="0 0 24 24" class="icon-naver"><path d="M16.94 18.06l-6.8-9.76v9.76H5.5V5.5h4.63l6.81 9.77V5.5h4.65v12.56h-4.65z"/></svg>
-                Naver Map
+                <img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" class="shortcut-icon naver-icon" alt="NAVER">
+                NAVER Map
             </a>
+        </div>
+        
+        <div class="map-preview" id="mapPreview">
+            <iframe id="mapFrame" src="" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
     </div>
 </div>
@@ -363,12 +457,15 @@
     };
 
     // Initialize Language
-    // Check localStorage first, then browser language
     const savedLang = localStorage.getItem('gtc_lang');
     const systemLang = (navigator.language || navigator.userLanguage).toLowerCase();
     const defaultLang = savedLang ? savedLang : (systemLang.includes('zh') || systemLang.includes('tw') ? 'zh-TW' : 'en');
-    
     let currentLang = defaultLang;
+
+    // Initialize Theme
+    const savedTheme = localStorage.getItem('gtc_theme');
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    let currentTheme = savedTheme ? savedTheme : (systemDark ? 'dark' : 'light');
 
     // UI Elements
     const urlInput = document.getElementById('urlInput');
@@ -378,6 +475,8 @@
     const errorMsg = document.getElementById('errorMsg');
     const subtitleEl = document.getElementById('lblSubtitle');
     const langToggleBtn = document.getElementById('langToggle');
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const mapFrame = document.getElementById('mapFrame');
     
     // Output Elements
     const placeNameEl = document.getElementById('placeName');
@@ -388,19 +487,10 @@
     function updateLanguage() {
         const t = I18N[currentLang];
         document.documentElement.lang = currentLang;
-        
-        // Update Static Text
         subtitleEl.textContent = t.subtitle;
         urlInput.placeholder = t.placeholder;
         convertBtn.textContent = t.convert;
         langToggleBtn.textContent = t.toggleBtn;
-
-        // If error message is showing, update it (approximated, logic might need precise error tracking to be perfect but good enough)
-        if (errorMsg.style.display === 'block') {
-           // Generally we clear error on lang switch or just let user re-try, but we can leave it
-        }
-        
-        // Save preference
         localStorage.setItem('gtc_lang', currentLang);
     }
     
@@ -408,13 +498,32 @@
         currentLang = currentLang === 'zh-TW' ? 'en' : 'zh-TW';
         updateLanguage();
     }
+    
+    function updateTheme() {
+        const html = document.documentElement;
+        html.classList.remove('dark-mode', 'light-mode');
+        
+        if (currentTheme === 'dark') {
+            html.classList.add('dark-mode');
+            themeToggleBtn.textContent = '☀️';
+        } else {
+            html.classList.add('light-mode');
+            themeToggleBtn.textContent = '🌙';
+        }
+        localStorage.setItem('gtc_theme', currentTheme);
+    }
+    
+    function toggleTheme() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        updateTheme();
+    }
 
     // Initial Render
     updateLanguage();
+    updateTheme();
 
     async function convert() {
-        const t = I18N[currentLang]; // Get current dictionary
-        
+        const t = I18N[currentLang];
         const url = urlInput.value.trim();
         if (!url) return;
 
@@ -423,13 +532,13 @@
         errorMsg.style.display = 'none';
         convertBtn.disabled = true;
         loader.style.display = 'flex';
+        mapFrame.src = '';
 
         try {
             const res = await fetch(`/api?url=${encodeURIComponent(url)}`);
             const data = await res.json();
 
             if (!res.ok) {
-                // If specific Coords not found error, use custom friendly message
                 if (data.error === 'Coords not found' || res.status === 404) {
                      throw new Error(t.pleaseCopyFromShare);
                 }
@@ -438,9 +547,7 @@
 
             const { coords, placeName } = data;
             
-            // Critical Fix: Null check for coords
             if (!coords) {
-                // Return success but no coords? Treat as error for this tool.
                 throw new Error(t.pleaseCopyFromShare);
             }
 
@@ -451,14 +558,14 @@
             coordsEl.textContent = coords;
 
             const appleUrl = `http://maps.apple.com/?q=${lat},${lon}`;
-            
-            // Updated Naver Map URL format
-            // nmap://place?lat={lat}&lng={lng}&name={name}&appname={appname}
             const encodedName = encodeURIComponent(placeName || 'Location');
             const naverUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`; 
             
             btnApple.href = appleUrl;
             btnNaver.href = naverUrl;
+            
+            // Map Preview using OpenStreetMap
+            mapFrame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lon)-0.01},${parseFloat(lat)-0.01},${parseFloat(lon)+0.01},${parseFloat(lat)+0.01}&layer=mapnik&marker=${lat},${lon}`;
             
             coordsEl.onclick = () => {
                 navigator.clipboard.writeText(coords);
