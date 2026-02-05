@@ -1,12 +1,36 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
 import { I18N } from '../i18n';
 
+import FavoriteNameModal from './FavoriteNameModal';
+
 export default function ResultCard({ result }) {
-  const { lang, theme } = useStore();
+  const { lang, theme, settings, favorites, addFavorite, removeFavorite } = useStore();
   const t = I18N[lang];
   const { placeName, coords, lat, lon } = result;
+  
+  const favoriteItem = favorites.find(f => f.coords === coords);
+  const isFavorite = !!favoriteItem;
+  const displayName = favoriteItem?.customName || placeName;
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleToggleFavorite = (e) => {
+      e.stopPropagation();
+      if (isFavorite) {
+          removeFavorite(coords);
+      } else {
+          setIsModalOpen(true);
+      }
+  };
+
+  const handleSaveFavorite = (customName) => {
+      const timestamp = new Date().toISOString();
+      addFavorite({ ...result, timestamp }, customName);
+      setIsModalOpen(false);
+  };
   
   const [copied, setCopied] = useState(false);
   const [distance, setDistance] = useState(null);
@@ -38,7 +62,6 @@ export default function ResultCard({ result }) {
 
   const fetchWeather = async () => {
       try {
-          // Check cache or debounce if needed, but for now direct call
           const res = await axios.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`);
           const data = res.data.current;
           setWeather({
@@ -55,7 +78,6 @@ export default function ResultCard({ result }) {
      fetchWeather();
   }, [lat, lon]);
 
-  // WMO Weather Code Mapping (Simple version)
   const getWeatherIcon = (code) => {
       if (code === 0) return { icon: '☀️', key: 'clear' };
       if (code >= 1 && code <= 3) return { icon: '☁️', key: 'cloudy' };
@@ -73,9 +95,8 @@ export default function ResultCard({ result }) {
     setTimeout(() => setCopied(false), 1500);
   };
   
-  // Haversine formula
   function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-      const R = 6371; // Radius of the earth in km
+      const R = 6371;
       const dLat = deg2rad(lat2 - lat1);
       const dLon = deg2rad(lon2 - lon1); 
       const a = 
@@ -83,7 +104,7 @@ export default function ResultCard({ result }) {
         Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
         Math.sin(dLon/2) * Math.sin(dLon/2); 
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-      const d = R * c; // Distance in km
+      const d = R * c;
       return d;
   }
   
@@ -117,77 +138,177 @@ export default function ResultCard({ result }) {
 
   return (
     <div className="relative w-full animate-slide-up">
+        <FavoriteNameModal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            onSave={handleSaveFavorite}
+            initialName={placeName} 
+            t={t}
+        />
         <div id="resultCard" className="mt-6 p-6 bg-surface-card backdrop-blur-2xl shadow-ios-lg rounded-[28px] w-full text-left transition-all duration-300 border border-ios-border overflow-hidden">
-            <h2 className="text-xl font-semibold mb-1 text-text-primary" id="placeName">
-                {placeName}
-            </h2>
-            
-            <div 
-                className="text-base text-ios-blue mb-4 cursor-pointer active:opacity-60 transition-opacity duration-200 select-none font-medium"
-                onClick={handleCopy}
-                title="Click to copy"
-            >
-                {copied ? t.copied : coords}
+            <div className="flex items-center justify-between mb-1">
+                <h2 className="text-xl font-semibold text-text-primary truncate pr-2" id="placeName">
+                    {displayName}
+                </h2>
+                <button 
+                    onClick={handleToggleFavorite}
+                    className="p-1 rounded-full hover:bg-surface-button-hover active:scale-95 transition-all focus:outline-none"
+                    title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                >
+                    <svg 
+                        className={`w-6 h-6 transition-colors duration-200 ${isFavorite ? 'text-[#FFC107] fill-[#FFC107]' : 'text-text-tertiary hover:text-text-secondary'}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                </button>
             </div>
+            
+            {/* Coordinates */}
+            <AnimatePresence>
+                {settings.showCoords && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                        animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div 
+                            className="text-base text-ios-blue cursor-pointer active:opacity-60 transition-opacity duration-200 select-none font-medium"
+                            onClick={handleCopy}
+                            title="Click to copy"
+                        >
+                            {copied ? t.copied : coords}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Info Row: Distance & Weather */}
-            <div className="flex flex-wrap items-center gap-4 mb-4 animate-fade-in pl-0.5">
-                {distance && (
-                    <div className="text-text-secondary text-sm font-normal flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <div className={`flex flex-wrap items-center gap-4 animate-fade-in pl-0.5 ${(settings.showCoords) ? 'mb-4' : 'mt-2 mb-4'}`}>
+                <AnimatePresence>
+                {settings.showDistance && distance && (
+                    <motion.div 
+                        initial={{ opacity: 0, width: 0, paddingRight: 0 }}
+                        animate={{ opacity: 1, width: 'auto', paddingRight: 16 }}
+                        exit={{ opacity: 0, width: 0, paddingRight: 0 }}
+                        className="text-text-secondary text-sm font-normal flex items-center gap-1.5 overflow-hidden whitespace-nowrap"
+                    >
+                        <svg className="w-3.5 h-3.5 opacity-70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         {t.distanceFromYou || 'Distance'}: <span className="text-text-primary font-medium">{distance}</span>
-                    </div>
+                    </motion.div>
                 )}
+                </AnimatePresence>
                 
-                {/* Geolocation Button (Only if no distance and no error) */}
-                {!distance && !locError && (
-                    <button 
+                {/* Geolocation Button */}
+                <AnimatePresence>
+                {settings.showDistance && !distance && !locError && (
+                    <motion.button 
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
                         onClick={getDistance}
-                        className="flex items-center gap-1.5 text-sm text-ios-blue hover:opacity-70 transition-opacity"
+                        className="flex items-center gap-1.5 text-sm text-ios-blue hover:opacity-70 transition-opacity whitespace-nowrap overflow-hidden"
                         disabled={locLoading}
                     >
-                        <svg className={`w-3.5 h-3.5 ${locLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className={`w-3.5 h-3.5 flex-shrink-0 ${locLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             {locLoading 
                                 ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path> 
                                 : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                             }
                         </svg>
                         {locLoading ? t.calculating || 'Locating...' : t.showDistance || 'Show Distance'}
-                    </button>
+                    </motion.button>
                 )}
+                </AnimatePresence>
 
-                {/* Weather Info */}
-                {weather && (
-                    <div className="text-text-secondary text-sm font-normal flex items-center gap-1.5 border-l border-ios-border pl-4">
+                {/* Weather Info (Toggleable) */}
+                <AnimatePresence>
+                {settings.showWeather && weather && (
+                    <motion.div 
+                        initial={{ opacity: 0, width: 0, paddingLeft: 0, borderLeftWidth: 0 }}
+                        animate={{ opacity: 1, width: 'auto', paddingLeft: 16, borderLeftWidth: 1 }}
+                        exit={{ opacity: 0, width: 0, paddingLeft: 0, borderLeftWidth: 0 }}
+                        className="text-text-secondary text-sm font-normal flex items-center gap-1.5 border-l border-ios-border overflow-hidden whitespace-nowrap"
+                    >
                         <span className="text-lg leading-none">{getWeatherIcon(weather.code).icon}</span>
                         <span className="text-text-primary font-medium">{weather.temp}°C</span>
                         <span className="opacity-80 text-xs">({t.weather?.[getWeatherIcon(weather.code).key] || getWeatherIcon(weather.code).key})</span>
-                    </div>
+                    </motion.div>
                 )}
+                </AnimatePresence>
             </div>
             
-            <div className="flex gap-2.5 mb-4 select-none">
-                <a href={appleUrl} className="flex-1 bg-white text-black no-underline rounded-[14px] p-[14px] flex items-center justify-center font-medium text-sm shadow-sm transition-transform duration-100 ease-out active:scale-95 dark:bg-[#3a3a3c] dark:text-white group">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" alt="Apple Maps" className={`w-[18px] h-[18px] mr-[6px] object-contain ${theme === 'light' ? 'invert' : ''}`} />
-                    Apple Maps
-                </a>
-                <a href={naverUrl} className="flex-1 bg-[#03C75A] text-white no-underline rounded-[14px] p-[14px] flex items-center justify-center font-medium text-sm shadow-sm transition-transform duration-100 ease-out active:scale-95">
-                    <img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" alt="Naver Map" className="w-[18px] h-[18px] mr-[6px] object-contain rounded-[4px] " />
-                    NAVER Maps
-                </a>
-            </div>
+            {/* Map Shortcuts (Toggleable with AnimatePresence) */}
+            <AnimatePresence>
+                {(settings.showAppleMap || settings.showNaverMap) && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                        animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                        className="flex gap-2.5 overflow-hidden select-none"
+                    >
+                        {settings.showAppleMap && (
+                            <motion.a 
+                                layout
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                href={appleUrl} 
+                                className={`
+                                    bg-white text-black no-underline rounded-[14px] p-[14px] flex items-center justify-center font-medium text-sm shadow-sm transition-transform duration-100 ease-out active:scale-95 dark:bg-[#3a3a3c] dark:text-white group
+                                    ${!settings.showNaverMap ? 'w-full' : 'flex-1'}
+                                `}
+                            >
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" alt="Apple Maps" className={`w-[18px] h-[18px] mr-[6px] object-contain ${theme === 'light' ? 'invert' : ''}`} />
+                                Apple Maps
+                            </motion.a>
+                        )}
+                        {settings.showNaverMap && (
+                            <motion.a 
+                                layout
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                href={naverUrl} 
+                                className={`
+                                    bg-[#03C75A] text-white no-underline rounded-[14px] p-[14px] flex items-center justify-center font-medium text-sm shadow-sm transition-transform duration-100 ease-out active:scale-95
+                                    ${!settings.showAppleMap ? 'w-full' : 'flex-1'}
+                                `}
+                            >
+                                <img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" alt="Naver Map" className="w-[18px] h-[18px] mr-[6px] object-contain rounded-[4px] " />
+                                NAVER Maps
+                            </motion.a>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
             
-            <div className="rounded-2xl overflow-hidden border border-surface-button bg-surface-button aspect-[16/9] relative z-0">
-                <iframe 
-                    id="mapFrame" 
-                    src={`https://www.google.com/maps?q=${lat},${lon}&z=15&output=embed`} 
-                    loading="lazy" 
-                    allowFullScreen 
-                    referrerPolicy="no-referrer-when-downgrade"
-                    className="w-full h-full border-none"
-                    title="Map Preview"
-                ></iframe>
-            </div>
+            {/* Map Preview (Toggleable) */}
+            <AnimatePresence>
+            {settings.showMapPreview && (
+                <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="rounded-2xl overflow-hidden border border-surface-button bg-surface-button relative z-0"
+                >
+                    <div className="aspect-[16/9] w-full relative">
+                        <iframe 
+                            id="mapFrame" 
+                            src={`https://www.google.com/maps?q=${lat},${lon}&z=15&output=embed`} 
+                            loading="lazy" 
+                            allowFullScreen 
+                            referrerPolicy="no-referrer-when-downgrade"
+                            className="w-full h-full border-none absolute inset-0"
+                            title="Map Preview"
+                        ></iframe>
+                    </div>
+                </motion.div>
+            )}
+            </AnimatePresence>
         </div>
 
         {/* Share Actions */}

@@ -40,7 +40,7 @@
   }
   
   body {
-    @apply min-h-screen flex justify-center items-center font-sans bg-cover bg-center antialiased;
+    @apply min-h-screen font-sans bg-cover bg-center antialiased;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
     
     /* Mesh Gradient Background */
