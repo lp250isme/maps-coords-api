@@ -52,8 +52,9 @@ https://maps.app.goo.gl/nNy5s3mhUjJx6ftz6
 
 ### Tech Stack
 - **Runtime**: Node.js (Vercel Serverless Function)
-- **Frontend**: Vanilla HTML/JS/CSS (No framework overhead)
-- **Styling**: Native CSS Variables & Animations
+- **Frontend**: React + Vite
+- **State Management**: Zustand
+- **Styling**: Tailwind CSS + Custom Animations
 
 ### Local Development
 
@@ -61,8 +62,8 @@ https://maps.app.goo.gl/nNy5s3mhUjJx6ftz6
 # Install dependencies
 npm install
 
-# Run locally
-npm start
+# Run locally (Frontend + API)
+npm run dev
 ```
 
 ---
@@ -113,8 +114,9 @@ https://maps.app.goo.gl/nNy5s3mhUjJx6ftz6
 
 ### 技術堆疊
 - **執行環境**: Node.js (Vercel Serverless Function)
-- **前端**: Vanilla HTML/JS/CSS (無框架負擔)
-- **樣式**: Native CSS Variables & Animations
+- **前端**: React + Vite
+- **狀態管理**: Zustand
+- **樣式**: Tailwind CSS + Custom Animations
 
 ### 本地開發
 
@@ -122,6 +124,6 @@ https://maps.app.goo.gl/nNy5s3mhUjJx6ftz6
 # 安裝依賴
 npm install
 
-# 本地執行
-npm start
+# 本地執行 (前端 + API)
+npm run dev
 ```

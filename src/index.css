@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --primary-blue: #007AFF;
+    --text-primary: #1D1D1f;
+    --text-secondary: #86868b;
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark {
+    --glass-bg: rgba(30, 30, 30, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-primary: #F5F5F7;
+    --text-secondary: #86868b;
+  }
+  
+  body {
+    @apply min-h-screen flex justify-center items-center font-sans bg-cover bg-center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background: 
+        radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+        radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+        radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+    background-size: 200% 200%;
+    animation: gradientBG 15s ease infinite;
+    padding-bottom: 15vh;
+  }
+
+  .dark body {
+    background: 
+        radial-gradient(at 0% 0%, hsla(253,16%,15%,1) 0, transparent 50%), 
+        radial-gradient(at 50% 0%, hsla(225,39%,20%,1) 0, transparent 50%), 
+        radial-gradient(at 100% 0%, hsla(339,49%,20%,1) 0, transparent 50%) !important;
+    background-color: #1a1a1a !important;
+    background-size: 200% 200% !important;
+  }
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
