@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Maps Coords</title>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --primary-blue: #007AFF;
+            --apple-map-color: #8E8E93; /* System Gray or specific icon color */
+            --naver-green: #03C75A;
+            --text-primary: #1D1D1f;
+            --text-secondary: #86868b;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --glass-bg: rgba(30, 30, 30, 0.65);
+                --glass-border: rgba(255, 255, 255, 0.1);
+                --text-primary: #F5F5F7;
+                --text-secondary: #86868b;
+            }
+            body {
+                background: linear-gradient(135deg, #2c3e50, #000000) !important;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            /* Abstract mesh gradient background */
+            background: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            background-size: 200% 200%;
+            animation: gradientBG 15s ease infinite; 
+            color: var(--text-primary);
+        }
+        
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            width: 90%;
+            max-width: 440px;
+            padding: 40px 30px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        p.subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            margin-top: 0;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 16px;
+            border-radius: 16px;
+            border: 1px solid transparent;
+            background: rgba(120, 120, 128, 0.08); /* Apple system gray 5/6-ish */
+            color: var(--text-primary);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus {
+            background: rgba(120, 120, 128, 0.12); /* Slightly darker on focus */
+            transform: scale(1.01);
+        }
+        
+        input[type="text"]::placeholder {
+            color: var(--text-secondary);
+        }
+
+        button.primary-btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background-color: var(--primary-blue);
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: transform 0.1s ease, background-color 0.2s;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        button.primary-btn:active {
+            transform: scale(0.96);
+        }
+        
+        button.primary-btn:disabled {
+            background-color: var(--text-secondary);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Result Card */
+        .result-card {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05); /* Very subtle internal card */
+            border-radius: 18px;
+            display: none; /* Hidden by default */
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .place-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+
+        .coords {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: "SF Mono", "Menlo", monospace;
+            margin-bottom: 20px;
+            opacity: 0.8;
+            cursor: pointer;
+        }
+        
+        .coords:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .shortcuts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .shortcut-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px;
+            border-radius: 14px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.1s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .shortcut-btn:active {
+            transform: scale(0.95);
+        }
+
+        .apple-maps {
+            background: white;
+            color: black;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .apple-maps {
+                background: #3a3a3c;
+                color: white;
+            }
+        }
+
+        .naver-maps {
+            background: var(--naver-green);
+            color: white;
+            box-shadow: 0 4px 12px rgba(3, 199, 90, 0.3);
+        }
+        
+        svg {
+            margin-right: 6px;
+        }
+
+        /* Loader */
+        .loader {
+            display: none;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(120, 120, 128, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-blue);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Icon Placeholders (SVG) */
+        .icon-apple { width: 18px; height: 18px; fill: currentColor; }
+        .icon-naver { width: 18px; height: 18px; fill: white; }
+
+        .error-msg {
+            color: #ff3b30;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Maps Coords</h1>
+    <p class="subtitle">Convert URLs to Coordinates</p>
+
+    <div class="input-group">
+        <input type="text" id="urlInput" placeholder="Paste Google Maps URL here..." spellcheck="false" autocomplete="off">
+    </div>
+
+    <button class="primary-btn" id="convertBtn" onclick="convert()">Convert</button>
+
+    <div class="loader" id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <p class="error-msg" id="errorMsg"></p>
+
+    <div class="result-card" id="resultCard">
+        <div class="place-name" id="placeName">Taipei 101</div>
+        <div class="coords" id="coordsDisplay" title="Click to copy">25.033976, 121.564539</div>
+
+        <div class="shortcuts">
+            <a href="#" id="btnApple" class="shortcut-btn apple-maps" target="_blank">
+                <svg viewBox="0 0 24 24" class="icon-apple"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.07-.5-2.19-.51-3.23.01-1.39.7-2.31.28-3.1-.78C5.26 16.59 4 11.23 7.85 10.95c1.17-.09 2.15.53 2.9.53.76 0 2-.63 3.32-.54 1.25.09 2.37.56 3.09 1.54-2.6 1.4-2.12 5.09.46 6.13-.37.95-.91 1.95-1.57 2.67zM12.03 7.25c-.64 0-1.61-.26-2.09-.76-.55-.57-.96-1.53-.78-2.42 1.05.08 1.97.64 2.45 1.15.51.52.89 1.5.42 2.03z"/></svg>
+                Apple Maps
+            </a>
+            <a href="#" id="btnNaver" class="shortcut-btn naver-maps" target="_blank">
+                <svg viewBox="0 0 24 24" class="icon-naver"><path d="M16.94 18.06l-6.8-9.76v9.76H5.5V5.5h4.63l6.81 9.77V5.5h4.65v12.56h-4.65z"/></svg>
+                Naver Map
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const urlInput = document.getElementById('urlInput');
+    const convertBtn = document.getElementById('convertBtn');
+    const loader = document.getElementById('loader');
+    const resultCard = document.getElementById('resultCard');
+    const errorMsg = document.getElementById('errorMsg');
+    
+    // Output Elements
+    const placeNameEl = document.getElementById('placeName');
+    const coordsEl = document.getElementById('coordsDisplay');
+    const btnApple = document.getElementById('btnApple');
+    const btnNaver = document.getElementById('btnNaver');
+
+    async function convert() {
+        const url = urlInput.value.trim();
+        if (!url) return;
+
+        // Reset UI
+        resultCard.style.display = 'none';
+        errorMsg.style.display = 'none';
+        convertBtn.disabled = true;
+        loader.style.display = 'flex';
+
+        try {
+            // Call our API
+            // Note: Since we configured vercel.json rewrites, the API is at /api
+            const res = await fetch(`/api?url=${encodeURIComponent(url)}`);
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to fetch coordinates');
+            }
+
+            // Success
+            const { coords, placeName } = data;
+            const [lat, lon] = coords.replace(/\s/g, '').split(',');
+
+            // Update UI
+            placeNameEl.textContent = placeName || 'Unknown Place';
+            coordsEl.textContent = coords;
+
+            // Generate Links
+            // Apple Maps: http://maps.apple.com/?q=Label&ll=lat,lon
+            // q = search term (label), ll = explicit lat long center
+            // const appleUrl = `http://maps.apple.com/?ll=${lat},${lon}&q=${encodeURIComponent(placeName || 'Location')}`;
+            // Use query format which is safer for dropping pins
+            const appleUrl = `http://maps.apple.com/?q=${lat},${lon}`;
+            
+            // Naver Map
+            // Mobile deep link: nmap://map?lat={lat}&lng={lng}&appname={bundleId}
+            // Web fallback: https://map.naver.com/v5/?c={lng},{lat},15,0,0,0,dh
+            // Since this runs in browser, prioritizing web url or universal link is safer, 
+            // but user asked for "App shortcut". 
+            // Let's try the mobile schema for standard behavior, but if on desktop it might fail.
+            // Better to use universal link logic or just web link that redirects.
+            // Naver Web: https://map.naver.com/p/search/${lat},${lon} (New version)
+            // Or schema: nmap://place?lat={lat}&lng={lng}&name={name}
+            const naverUrl = `nmap://map?lat=${lat}&lng=${lon}&appname=com.maps_coords_api.web`; 
+            // Better fallback for desktop users?
+            // Actually, let's keep it simple. If user wants "App shortcut", nmap:// implies the app.
+            
+            btnApple.href = appleUrl;
+            btnNaver.href = naverUrl;
+            
+            // Allow copy
+            coordsEl.onclick = () => {
+                navigator.clipboard.writeText(coords);
+                const originalText = coordsEl.textContent;
+                coordsEl.textContent = 'Copied!';
+                setTimeout(() => coordsEl.textContent = originalText, 1500);
+            };
+
+            resultCard.style.display = 'block';
+
+        } catch (err) {
+            errorMsg.textContent = err.message;
+            errorMsg.style.display = 'block';
+        } finally {
+            convertBtn.disabled = false;
+            loader.style.display = 'none';
+        }
+    }
+
+    // Enter key support
+    urlInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            convert();
+        }
+    });
+</script>
+
+</body>
+</html>

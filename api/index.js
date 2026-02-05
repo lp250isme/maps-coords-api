@@ -1,19 +1,15 @@
 module.exports = async function handler(req, res) {
   const { url } = req.query
   
-  // 🛡️ [防護 1] 基本參數檢查
   if (!url) return res.status(400).json({ error: 'Missing url' })
   if (!url.includes('google') && !url.includes('goo.gl')) {
       return res.status(400).json({ error: 'Not a Google Maps URL' })
   }
 
-  // 設定總共可以嘗試幾次 (1次正常 + 2次重試)
   const MAX_GLOBAL_RETRIES = 3;
   
-  // 用來跨重試階段保存地名 (如果第一次有抓到名字但沒座標，保留名字給最後用)
   let globalBestPlaceName = null;
 
-  // 🛡️ [防護 2] 隨機 User-Agent 池
   const USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -25,7 +21,6 @@ module.exports = async function handler(req, res) {
   const getRandomUA = () => USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Helper: Fetch with timeout (prevent hanging)
   const fetchWithTimeout = async (url, options = {}, timeout = 6000) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -37,25 +32,18 @@ module.exports = async function handler(req, res) {
     }
   };
 
-  // ==========================================
-  // 核心解析邏輯 (封裝成函式以供重試)
-  // ==========================================
   async function tryFetchCoords(targetUrl, attemptIndex) {
       let current = targetUrl
       let innerAttempt = 0
-      const MAX_INNER_ATTEMPTS = 4 // 稍微減少內部跳轉次數，把時間留給重試
+      const MAX_INNER_ATTEMPTS = 4  
       let localPlaceName = null
 
       try {
         while (innerAttempt < MAX_INNER_ATTEMPTS) {
           innerAttempt++
-          // console.log(`   [Try ${attemptIndex}-${innerAttempt}] Fetching...`) // Debug 用
-
-          // 提取名字
           const urlName = extractPlaceName(current)
           if (urlName) localPlaceName = urlName
 
-          // 每次請求都換一個 UA
           const r = await fetchWithTimeout(current, {
             redirect: 'manual',
             headers: {
@@ -66,14 +54,12 @@ module.exports = async function handler(req, res) {
 
           const locationHeader = r.headers.get('location')
           
-          // FTID Shortcut
           const redirectFtid = locationHeader ? getFtid(locationHeader) : null
           if (redirectFtid) {
             current = `https://www.google.com/maps?ftid=${redirectFtid}&hl=zh-TW`
             continue
           }
 
-          // Normal Redirect
           if (locationHeader) {
             current = locationHeader.startsWith('/') ? new URL(current).origin + locationHeader : locationHeader
             continue
@@ -82,14 +68,11 @@ module.exports = async function handler(req, res) {
           if (!r.ok) break
           const html = await r.text()
 
-          // HTML 名字補強
           const htmlName = extractPlaceName(current, html)
           if (htmlName) localPlaceName = htmlName
 
-          // Update Global Name if we found something better
           if (localPlaceName) globalBestPlaceName = localPlaceName;
 
-          // [Priority 0] Preload Link q param
           const preloadLinkMatch = html.match(/<link\s+[^>]*href="(\/search\?[^"]*tbm=map[^"]*)"/);
           if (preloadLinkMatch) {
               try {
@@ -107,7 +90,6 @@ module.exports = async function handler(req, res) {
               } catch (e) {}
           }
 
-          // Preview Link -> RPC
           const previewLinkMatch = html.match(/<link\s+[^>]*href="(\/maps\/preview\/place\?[^"]+)"/)
 
           if (previewLinkMatch) {
@@ -125,11 +107,10 @@ module.exports = async function handler(req, res) {
                   parsedData = JSON.parse(cleanJson);
                   const rpcName = parsedData?.[6]?.[11];
                   if (rpcName && typeof rpcName === 'string') {
-                      globalBestPlaceName = rpcName; // Update global best
+                      globalBestPlaceName = rpcName; 
                   }
               } catch (e) {}
 
-              // Priority 1: Strict Pin
               const strictMatch = rpcText.match(/\[\s*null\s*,\s*null\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/)
               if (strictMatch) {
                 console.log(`✅ [Try ${attemptIndex}] Found Priority 1 strict coords`)
@@ -137,30 +118,23 @@ module.exports = async function handler(req, res) {
                 return { lat, lon, name: globalBestPlaceName };
               }
 
-              // Priority 2: JSON data[0]
               if (parsedData && isValidCoordArray(parsedData[0])) {
                  console.log(`✅ [Try ${attemptIndex}] Found Priority 2 JSON coords`);
                  const [lat, lon] = normalizeCoords(parsedData[0][0], parsedData[0][1]);
                  return { lat, lon, name: globalBestPlaceName };
               }
 
-              // Priority 3: JSON data[1][0]
               if (parsedData && Array.isArray(parsedData[1]) && isValidCoordArray(parsedData[1][0])) {
                  console.log(`✅ [Try ${attemptIndex}] Found Priority 3 JSON coords`);
                  const [lat, lon] = normalizeCoords(parsedData[1][0][0], parsedData[1][0][1]);
                  return { lat, lon, name: globalBestPlaceName };
               }
 
-              // Priority 4: JSON data[4][0] -> [??, lon, lat]
-              // Note: The user provided example shows [3162..., 126.9..., 37.5...]
-              // So index 1 = Lon, index 2 = Lat
               if (parsedData && Array.isArray(parsedData[4]) && Array.isArray(parsedData[4][0]) && parsedData[4][0].length >= 3) {
                   const targetArr = parsedData[4][0];
                   const rawLon = parseFloat(targetArr[1]);
                   const rawLat = parseFloat(targetArr[2]);
                   
-                  // Strict check: must be valid numbers and NOT both zero (unless actually (0,0) which is rare for a place)
-                  // Also check against null explicitly just in case
                   if (!isNaN(rawLon) && !isNaN(rawLat) && (rawLon !== 0 || rawLat !== 0)) {
                       console.log(`✅ [Try ${attemptIndex}] Found Priority 4 JSON coords: ${rawLat}, ${rawLon}`);
                       const [lat, lon] = normalizeCoords(rawLon, rawLat);
@@ -168,7 +142,6 @@ module.exports = async function handler(req, res) {
                   }
               }
 
-              // Priority 5: Viewport Regex
               const fallbackMatch = rpcText.match(/\[\s*\d+(?:\.\d+)?\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/)
               if (fallbackMatch) {
                   console.log(`✅ [Try ${attemptIndex}] Found Priority 5 Viewport coords`)
@@ -177,18 +150,14 @@ module.exports = async function handler(req, res) {
               }
             }
           }
-          // 如果沒找到，繼續 inner loop (跟隨 redirect)
           if (!locationHeader && !previewLinkMatch) break; 
         }
       } catch (err) {
           console.error(`⚠️ Attempt ${attemptIndex} Error:`, err.message);
       }
-      return null; // This attempt failed
+      return null; 
   }
 
-  // ==========================================
-  // 🔄 主控台：全域重試迴圈
-  // ==========================================
   try {
       for (let i = 1; i <= MAX_GLOBAL_RETRIES; i++) {
           console.log(`\n🚀 GLOBAL TRY ${i}/${MAX_GLOBAL_RETRIES} for: ${url}`);
@@ -199,7 +168,6 @@ module.exports = async function handler(req, res) {
               return sendResult(res, result.lat, result.lon, result.name);
           }
 
-          // 如果失敗了，且還有重試機會，就休息一下 (Exponential Backoff)
           if (i < MAX_GLOBAL_RETRIES) {
               const waitTime = 800 * Math.pow(1.5, i - 1);
               console.log(`⏳ Coords not found in try ${i}. Waiting ${Math.round(waitTime)}ms to retry with new UA...`);
@@ -207,7 +175,6 @@ module.exports = async function handler(req, res) {
           }
       }
 
-      // 如果全部重試都失敗
       console.log('❌ All global retries exhausted.');
       return sendResult(res, null, null, globalBestPlaceName);
 
@@ -216,14 +183,10 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Server Error', placeName: globalBestPlaceName || "" })
   }
 
-  // ==========================================
-  // Helpers
-  // ==========================================
   function sendResult(res, lat, lon, name) {
     const format = val => parseFloat(val).toFixed(6)
     const coords = lat && lon ? `${format(lat)},${format(lon)}` : null
     
-    // 處理名字
     let finalName = name;
     if (!finalName) {
         try {
