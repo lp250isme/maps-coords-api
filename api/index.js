@@ -16,16 +16,17 @@ module.exports = async function handler(req, res) {
     // 如果有座標，組合成字串；否則為 null
     const coords = lat && lon ? `${format(lat)},${format(lon)}` : null
 
-    // 如果找不到地名，嘗試從原始 Query 撈最後一次
+    // 如果找不到地名，嘗試從原始 Query 撈最後一次 (雙重保險)
     let finalName = lastFoundPlaceName
     if (!finalName) {
       try {
         const u = new URL(url)
-        finalName = u.searchParams.get('q')
+        const q = u.searchParams.get('q')
+        if (q) finalName = q
       } catch (e) {}
     }
 
-    // 回傳狀態碼：有座標給 200，沒座標但有名字也給 200 (部分成功)，全空給 404
+    // 回傳狀態碼
     if (coords || finalName) {
       return res.status(200).json({
         coords: coords,
@@ -39,16 +40,20 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // 🛠️ Helper: 提取地點名稱
+  // 🛠️ Helper: 提取地點名稱 (從 URL 或 HTML)
   function extractPlaceName(currentUrl, htmlContent = '') {
     try {
       const u = new URL(currentUrl)
 
-      // 1. URL Query (q=...)
-      let name = u.searchParams.get('q')
-      if (name) return name
+      // 1. URL Query
+      let name = u.searchParams.get('q') || u.searchParams.get('query')
 
-      // 2. URL Path (/place/名稱/...)
+      // 排除看起來像座標的字串
+      if (name && !name.match(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/)) {
+        return name
+      }
+
+      // 2. URL Path
       if (currentUrl.includes('/place/')) {
         const parts = u.pathname.split('/place/')
         if (parts[1]) {
@@ -61,7 +66,7 @@ module.exports = async function handler(req, res) {
         const titleMatch = htmlContent.match(/<title>(.*?)<\/title>/)
         if (titleMatch && titleMatch[1]) {
           let title = titleMatch[1].replace(' - Google Maps', '').trim()
-          if (title !== 'Google Maps') return title
+          if (title && title !== 'Google Maps') return title
         }
 
         const ogTitleMatch = htmlContent.match(
@@ -94,9 +99,12 @@ module.exports = async function handler(req, res) {
       attempt++
       console.log(`\n🔍 Attempt ${attempt}: Fetching ${current}`)
 
-      // 每次請求前，先嘗試從 URL 抓地名
+      // 每次 Fetch 前先從 URL 抓名字 (作為備案)
       const urlName = extractPlaceName(current)
-      if (urlName) lastFoundPlaceName = urlName
+      if (urlName) {
+        // console.log(`📍 Found Place Name in URL: ${urlName}`)
+        lastFoundPlaceName = urlName
+      }
 
       const r = await fetch(current, {
         redirect: 'manual',
@@ -108,19 +116,19 @@ module.exports = async function handler(req, res) {
       })
 
       // ==========================
-      // 1. 處理 Redirect (攔截 FTID)
+      // 1. 處理 Redirect
       // ==========================
       const locationHeader = r.headers.get('location')
 
-      // 如果 header 裡有 FTID，直接跳關
+      // FTID Shortcut
       const redirectFtid = locationHeader ? getFtid(locationHeader) : null
       if (redirectFtid) {
         console.log(`⚡ Shortcut: Found FTID [${redirectFtid}]`)
-        current = `http://googleusercontent.com/maps.google.com/maps?ftid=${redirectFtid}&hl=zh-TW`
+        current = `https://www.google.com/maps?ftid=${redirectFtid}&hl=zh-TW`
         continue
       }
 
-      // 普通轉導
+      // Normal Redirect
       if (locationHeader) {
         console.log('➡️ Normal Redirect:', locationHeader)
         current = locationHeader.startsWith('/')
@@ -130,14 +138,16 @@ module.exports = async function handler(req, res) {
       }
 
       // ==========================
-      // 2. 解析 HTML (提取座標 & 地名)
+      // 2. 解析 HTML
       // ==========================
       if (!r.ok) break
       const html = await r.text()
 
-      // 嘗試從 HTML 抓地名 (通常 title 更準)
+      // 嘗試從 HTML 抓地名 (備案)
       const htmlName = extractPlaceName(current, html)
-      if (htmlName) lastFoundPlaceName = htmlName
+      if (htmlName) {
+        lastFoundPlaceName = htmlName
+      }
 
       // 抓 Preview Link -> RPC
       const previewLinkMatch = html.match(
@@ -159,7 +169,33 @@ module.exports = async function handler(req, res) {
         if (rpcRes.ok) {
           const rpcText = await rpcRes.text()
 
-          // 🎯 核心修改：嚴格鎖定 [null, null, Lat, Lon]
+          // ==========================================
+          // 🆕 核心修改：解析 JSON 提取 [6][11] 地名
+          // ==========================================
+          try {
+            // 1. 去除 Google JSON 前綴 )]}'
+            const cleanJson = rpcText.replace(/^\)]}'/, '').trim()
+
+            // 2. 解析 JSON
+            const data = JSON.parse(cleanJson)
+
+            // 3. 提取 [6][11] (使用 Optional Chaining 防止報錯)
+            const rpcName = data?.[6]?.[11]
+
+            if (rpcName && typeof rpcName === 'string') {
+              console.log(
+                `📍 Found Official Place Name in RPC [6][11]: ${rpcName}`
+              )
+              // 這是最準的，直接覆蓋之前的名字
+              lastFoundPlaceName = rpcName
+            }
+          } catch (e) {
+            console.log('⚠️ Failed to parse RPC JSON for name:', e.message)
+          }
+
+          // ==========================================
+          // 🎯 座標解析 (維持嚴格模式)
+          // ==========================================
           const rpcMatch = rpcText.match(
             /\[\s*null\s*,\s*null\s*,\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]/
           )
@@ -167,15 +203,14 @@ module.exports = async function handler(req, res) {
           if (rpcMatch) {
             console.log('✅ Found strict [null, null, Lat, Lon] coords!')
 
-            // Group 1: Lat, Group 2: Lon (基於您提供的 txt 順序)
             const val1 = parseFloat(rpcMatch[1])
             const val2 = parseFloat(rpcMatch[2])
 
-            // 防呆交換：若 val1 是經度 (數值較大)，則交換
+            // 防呆交換
             if (Math.abs(val1) > Math.abs(val2)) {
-              return sendResult(val2, val1) // val2=Lat, val1=Lon
+              return sendResult(val2, val1)
             }
-            return sendResult(val1, val2) // val1=Lat, val2=Lon
+            return sendResult(val1, val2)
           }
         }
       }
@@ -183,13 +218,12 @@ module.exports = async function handler(req, res) {
     }
 
     // ==========================
-    // 3. 失敗處理 (回傳僅有名字的 JSON)
+    // 3. 失敗處理
     // ==========================
     console.log('⚠️ No coords found, returning fallback.')
     return sendResult(null, null)
   } catch (err) {
     console.error('Error:', err.message)
-    // 發生錯誤時，至少嘗試回傳地名
     return res.status(500).json({
       error: 'Server Error',
       placeName: lastFoundPlaceName
