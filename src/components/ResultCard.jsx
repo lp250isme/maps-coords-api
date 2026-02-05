@@ -40,7 +40,7 @@ export default function ResultCard({ result }) {
             </a>
              <a href={naverUrl} className="flex-1 bg-[#03C75A] text-white no-underline rounded-[14px] p-[14px] flex items-center justify-center font-medium text-sm shadow-sm transition-transform duration-100 ease-out active:scale-95">
                 <img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" alt="Naver Map" className="w-[18px] h-[18px] mr-[6px] object-contain rounded-[4px] " />
-                Naver Map
+                NAVER Maps
             </a>
         </div>
         
