@@ -26,6 +26,11 @@ const getInitialFavorites = () => {
         return JSON.parse(localStorage.getItem('gtc_favorites')) || [];
     } catch { return []; }
 };
+const getInitialFolders = () => {
+    try {
+        return JSON.parse(localStorage.getItem('gtc_folders')) || [];
+    } catch { return []; }
+};
 
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
@@ -37,6 +42,7 @@ export const useStore = create((set, get) => ({
   lang: getInitialLang(),
   history: getInitialHistory(),
   favorites: getInitialFavorites(),
+  folders: getInitialFolders(),  // NEW: User-created folders
   user: null, // User state
 
   setUser: (user) => set({ user }),
@@ -98,6 +104,11 @@ export const useStore = create((set, get) => ({
                   }
               });
               
+              // 1.5 Merge Folders (Union by name)
+              const cloudFolders = cloudData.folders || [];
+              const localFolders = get().folders;
+              const mergedFolders = [...new Set([...cloudFolders, ...localFolders])];
+              
               // 2. Merge History (Union by coords - UNLIMITED)
               const cloudHistory = cloudData.history || [];
               const localHistory = get().history;
@@ -120,33 +131,33 @@ export const useStore = create((set, get) => ({
               const localCache = JSON.parse(localStorage.getItem('gtc_location_cache')) || {};
               const mergedCache = { ...cloudCache, ...localCache };
 
-              // Update State & LocalStorage
               set({ 
                   favorites: mergedFavorites, 
                   history: mergedHistory,
+                  folders: mergedFolders,
                   settings: mergedSettings 
                   // Cache isn't in state to avoid re-renders, accessible via localStorage/method
               });
               localStorage.setItem('gtc_favorites', JSON.stringify(mergedFavorites));
               localStorage.setItem('gtc_history', JSON.stringify(mergedHistory));
+              localStorage.setItem('gtc_folders', JSON.stringify(mergedFolders));
               localStorage.setItem('gtc_settings', JSON.stringify(mergedSettings));
               localStorage.setItem('gtc_location_cache', JSON.stringify(mergedCache));
               
-              // Write back merged data to Cloud
               await setDoc(userRef, { 
                   favorites: mergedFavorites,
                   history: mergedHistory,
+                  folders: mergedFolders,
                   settings: mergedSettings,
                   locationCache: mergedCache
               }, { merge: true });
 
           } else {
-              // First time: Write Local -> Cloud
-              const localCache = JSON.parse(localStorage.getItem('gtc_location_cache')) || {};
               await setDoc(userRef, { 
                   favorites: get().favorites,
                   history: get().history,
-                  settings: get().settings, // Also sync settings
+                  folders: get().folders,
+                  settings: get().settings,
                   locationCache: localCache
               }, { merge: true });
           }
@@ -273,9 +284,9 @@ export const useStore = create((set, get) => ({
       return { favorites: newFavorites };
   }),
 
-  addFavorite: (item, customName) => set((state) => {
+  addFavorite: (item, customName, folder = null) => set((state) => {
       const filtered = state.favorites.filter(f => f.coords !== item.coords);
-      const newItem = { ...item, customName: customName }; 
+      const newItem = { ...item, customName: customName, folder: folder }; 
       const newFavorites = [newItem, ...filtered];
       localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
 
@@ -284,6 +295,51 @@ export const useStore = create((set, get) => ({
       if (user) {
           const userRef = doc(db, "users", user.uid);
           setDoc(userRef, { favorites: newFavorites }, { merge: true }).catch(console.error);
+      }
+
+      return { favorites: newFavorites };
+  }),
+
+  // Folder Actions
+  addFolder: (name) => set((state) => {
+      if (!name.trim() || state.folders.includes(name.trim())) return state;
+      const newFolders = [...state.folders, name.trim()];
+      localStorage.setItem('gtc_folders', JSON.stringify(newFolders));
+
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { folders: newFolders }, { merge: true }).catch(console.error);
+      }
+
+      return { folders: newFolders };
+  }),
+
+  removeFolder: (name) => set((state) => {
+      const newFolders = state.folders.filter(f => f !== name);
+      // Move items in this folder to uncategorized (null)
+      const newFavorites = state.favorites.map(f => 
+          f.folder === name ? { ...f, folder: null } : f
+      );
+      localStorage.setItem('gtc_folders', JSON.stringify(newFolders));
+      localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
+
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { folders: newFolders, favorites: newFavorites }, { merge: true }).catch(console.error);
+      }
+
+      return { folders: newFolders, favorites: newFavorites };
+  }),
+
+  moveToFolder: (coords, folderName) => set((state) => {
+      const newFavorites = state.favorites.map(f => 
+          f.coords === coords ? { ...f, folder: folderName } : f
+      );
+      localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
+
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { favorites: newFavorites }, { merge: true }).catch(console.error);
       }
 
       return { favorites: newFavorites };

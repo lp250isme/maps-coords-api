@@ -6,7 +6,7 @@ import { I18N } from '../i18n';
 import FavoriteNameModal from './FavoriteNameModal';
 
 export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = 'history' }) {
-  const { lang, history, favorites, clearHistory, toggleFavorite, addFavorite, user } = useStore();
+  const { lang, history, favorites, folders, clearHistory, toggleFavorite, addFavorite, addFolder, removeFolder, moveToFolder, user } = useStore();
   const t = I18N[lang];
   const [activeTab, setActiveTab] = useState('history');
   
@@ -14,8 +14,17 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFolder, setSelectedFolder] = useState(null); // null = all, 'uncategorized' = no folder, else folder name
+  const [showFolderDropdown, setShowFolderDropdown] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
 
   const filteredFavorites = favorites.filter(item => {
+      // Folder filter
+      if (selectedFolder === 'uncategorized' && item.folder) return false;
+      if (selectedFolder && selectedFolder !== 'uncategorized' && item.folder !== selectedFolder) return false;
+      
+      // Search filter
       const searchLower = searchTerm.toLowerCase();
       const customNameStart = (item.customName || '').toLowerCase();
       const placeNameStart = (item.placeName || '').toLowerCase();
@@ -24,6 +33,15 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
       return customNameStart.includes(searchLower) || 
              placeNameStart.includes(searchLower) || 
              coordsStart.includes(searchLower);
+  });
+
+  // Count items per folder
+  const folderCounts = {
+      all: favorites.length,
+      uncategorized: favorites.filter(f => !f.folder).length
+  };
+  folders.forEach(folder => {
+      folderCounts[folder] = favorites.filter(f => f.folder === folder).length;
   });
 
   // Sync active tab when initialTab changes or modal opens
@@ -38,9 +56,9 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
       setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (newName) => {
+  const handleSaveEdit = (newName, folder) => {
       if (editingItem) {
-          addFavorite(editingItem, newName);
+          addFavorite(editingItem, newName, folder);
           setIsEditModalOpen(false);
           setEditingItem(null);
       }
@@ -64,6 +82,7 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                 onClose={() => setIsEditModalOpen(false)}
                 onSave={handleSaveEdit}
                 initialName={editingItem?.customName || editingItem?.placeName}
+                initialFolder={editingItem?.folder}
                 t={t}
             />
             
@@ -119,15 +138,151 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                     </div>
                 </div>
 
-                {/* Search Bar (Favorites Only) */}
+                {/* Folder Filter & Search Bar (Favorites Only) */}
                 <AnimatePresence>
                     {activeTab === 'favorites' && user && favorites.length > 0 && (
                         <motion.div 
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="px-4 py-3 overflow-hidden"
+                            className="px-4 py-3 overflow-hidden flex flex-col gap-2"
                         >
+                            {/* Folder Dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowFolderDropdown(!showFolderDropdown)}
+                                    className="w-full flex items-center justify-between px-3 py-2 bg-[var(--input-bg)] rounded-[10px] text-sm text-text-primary hover:bg-surface-button transition-colors"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-ios-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                        </svg>
+                                        {selectedFolder === null ? t.allFavorites : 
+                                         selectedFolder === 'uncategorized' ? t.uncategorized : 
+                                         selectedFolder}
+                                        <span className="text-text-secondary text-xs">
+                                            ({selectedFolder === null ? folderCounts.all : 
+                                              selectedFolder === 'uncategorized' ? folderCounts.uncategorized : 
+                                              folderCounts[selectedFolder] || 0})
+                                        </span>
+                                    </span>
+                                    <svg className={`w-4 h-4 text-text-secondary transition-transform ${showFolderDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                
+                                {/* Dropdown Menu */}
+                                <AnimatePresence>
+                                    {showFolderDropdown && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -5 }}
+                                            className="absolute top-full left-0 right-0 mt-1 bg-ios-card border border-ios-border rounded-xl shadow-lg z-[300] overflow-hidden"
+                                        >
+                                            <div className="max-h-[200px] overflow-y-auto">
+                                                {/* All */}
+                                                <button
+                                                    onClick={() => { setSelectedFolder(null); setShowFolderDropdown(false); }}
+                                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between hover:bg-surface-button transition-colors ${selectedFolder === null ? 'text-ios-blue font-medium' : 'text-text-primary'}`}
+                                                >
+                                                    <span>🗂 {t.allFavorites}</span>
+                                                    <span className="text-text-secondary text-xs">{folderCounts.all}</span>
+                                                </button>
+                                                
+                                                {/* Uncategorized */}
+                                                <button
+                                                    onClick={() => { setSelectedFolder('uncategorized'); setShowFolderDropdown(false); }}
+                                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between hover:bg-surface-button transition-colors ${selectedFolder === 'uncategorized' ? 'text-ios-blue font-medium' : 'text-text-primary'}`}
+                                                >
+                                                    <span>📄 {t.uncategorized}</span>
+                                                    <span className="text-text-secondary text-xs">{folderCounts.uncategorized}</span>
+                                                </button>
+                                                
+                                                {/* Divider */}
+                                                {folders.length > 0 && <div className="border-t border-ios-border/50 my-1" />}
+                                                
+                                                {/* User Folders */}
+                                                {folders.map(folder => (
+                                                    <button
+                                                        key={folder}
+                                                        onClick={() => { setSelectedFolder(folder); setShowFolderDropdown(false); }}
+                                                        className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between hover:bg-surface-button transition-colors group ${selectedFolder === folder ? 'text-ios-blue font-medium' : 'text-text-primary'}`}
+                                                    >
+                                                        <span>📁 {folder}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-text-secondary text-xs">{folderCounts[folder] || 0}</span>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm(t.deleteFolderConfirm)) {
+                                                                        removeFolder(folder);
+                                                                        if (selectedFolder === folder) setSelectedFolder(null);
+                                                                    }
+                                                                }}
+                                                                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-opacity p-1"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                                
+                                                {/* Divider */}
+                                                <div className="border-t border-ios-border/50 my-1" />
+                                                
+                                                {/* New Folder */}
+                                                {showNewFolderInput ? (
+                                                    <div className="px-3 py-2 flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={newFolderName}
+                                                            onChange={(e) => setNewFolderName(e.target.value)}
+                                                            placeholder={t.folderName}
+                                                            className="flex-1 px-2 py-1.5 text-sm bg-surface-button rounded-lg border-none outline-none text-text-primary placeholder:text-text-secondary"
+                                                            autoFocus
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter' && newFolderName.trim()) {
+                                                                    addFolder(newFolderName.trim());
+                                                                    setNewFolderName('');
+                                                                    setShowNewFolderInput(false);
+                                                                }
+                                                                if (e.key === 'Escape') {
+                                                                    setShowNewFolderInput(false);
+                                                                    setNewFolderName('');
+                                                                }
+                                                            }}
+                                                        />
+                                                        <button
+                                                            onClick={() => {
+                                                                if (newFolderName.trim()) {
+                                                                    addFolder(newFolderName.trim());
+                                                                    setNewFolderName('');
+                                                                    setShowNewFolderInput(false);
+                                                                }
+                                                            }}
+                                                            className="text-ios-blue font-medium text-sm px-2"
+                                                        >
+                                                            {t.save}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setShowNewFolderInput(true)}
+                                                        className="w-full text-left px-3 py-2.5 text-sm text-ios-blue hover:bg-surface-button transition-colors"
+                                                    >
+                                                        ➕ {t.newFolder}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                            
+                            {/* Search Bar */}
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg className="h-4 w-4 text-[var(--ios-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">

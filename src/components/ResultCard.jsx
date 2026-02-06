@@ -33,9 +33,9 @@ export default function ResultCard({ result }) {
       }
   };
 
-  const handleSaveFavorite = (customName) => {
+  const handleSaveFavorite = (customName, folder) => {
       const timestamp = new Date().toISOString();
-      addFavorite({ ...result, timestamp }, customName);
+      addFavorite({ ...result, timestamp }, customName, folder);
       setIsModalOpen(false);
   };
   
@@ -126,7 +126,7 @@ export default function ResultCard({ result }) {
       }
       const shareData = {
           title: 'GTC - ' + placeName,
-          text: `Coords for ${placeName}: ${coords}`,
+          text: `${placeName}: ${coords}`,
           url: shareUrl
       };
 
@@ -152,7 +152,8 @@ export default function ResultCard({ result }) {
             isOpen={isModalOpen} 
             onClose={() => setIsModalOpen(false)} 
             onSave={handleSaveFavorite}
-            initialName={placeName} 
+            initialName={placeName}
+            initialFolder={null}
             t={t}
         />
         <div id="resultCard" className="mt-6 p-6 bg-surface-card backdrop-blur-2xl shadow-ios-lg rounded-[28px] w-full text-left transition-all duration-300 border border-ios-border overflow-hidden">
