@@ -12,9 +12,10 @@ export const I18N = {
         infoBody: `
             <p><strong>GTC (Google To Coords)</strong> 是一個快速將 Google Maps 網址轉換為經緯度座標的工具。</p>
             <p><strong>🔗 使用方式：</strong><br/>從 Google Maps 複製地點的分享連結，貼上後點擊「轉換」即可取得精確座標。</p>
+            <p><strong>📂 收藏與分類：</strong><br/>您可以將常用的地點加入收藏，並建立資料夾進行分類管理，資料夾會自動同步至雲端。</p>
             <p><strong>🗺️ 快速開啟：</strong><br/>轉換成功後，可一鍵在 <strong>Apple Maps</strong> 或 <strong>NAVER Maps</strong> 中開啟該地點進行導航。</p>
             <p><strong>📋 複製座標：</strong><br/>點擊座標文字即可複製到剪貼簿。</p>
-            <p><strong>💡 小提示：</strong><br/>如果轉換失敗，請確認您使用的是 Google 地圖的「分享」連結，而非直接複製網址列。若確認無誤，請嘗試重新轉換一次。</p>
+            <p><strong>💡 小提示：</strong><br/>點擊使用者名稱旁的編輯圖示可修改顯示名稱。</p>
         `,
         history: '歷史紀錄',
         favorites: '我的最愛',
@@ -62,7 +63,22 @@ export const I18N = {
         synced: '已同步',
         guest: '訪客',
         loginToFavorite: '請登入以管理收藏',
-        loginRequired: '請登入以查看您的收藏'
+        loginRequired: '請登入以查看您的收藏',
+        notLoggedIn: '未登入',
+        loginToViewFavorites: '登入 Google 以存取您的收藏',
+        // Folders & Dialogs
+        allFavorites: '全部收藏',
+        uncategorized: '未分類',
+        newFolder: '新增資料夾',
+        folderName: '資料夾名稱',
+        createFolderPlaceholder: '輸入新資料夾名稱...',
+        deleteFolderTitle: '刪除資料夾',
+        deleteFolderConfirm: '確定要刪除此資料夾嗎？資料夾內的收藏將會移動至「未分類」。',
+        moveToFolder: '移動至資料夾',
+        edit: '編輯',
+        delete: '刪除',
+        confirm: '確認',
+        rename: '重新命名'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -77,9 +93,10 @@ export const I18N = {
         infoBody: `
             <p><strong>GTC (Google To Coords)</strong> is a tool that quickly converts Google Maps URLs into latitude and longitude coordinates.</p>
             <p><strong>🔗 How to use:</strong><br/>Copy a location's share link from Google Maps, paste it, and click "Convert" to get precise coordinates.</p>
+            <p><strong>📂 Favorites & Folders:</strong><br/>Save locations to your favorites and organize them with folders. Folders are automatically synced to the cloud.</p>
             <p><strong>🗺️ Quick Navigation:</strong><br/>After conversion, open the location directly in <strong>Apple Maps</strong> or <strong>NAVER Maps</strong> for navigation.</p>
             <p><strong>📋 Copy Coordinates:</strong><br/>Click on the coordinates text to copy to clipboard.</p>
-            <p><strong>💡 Tip:</strong><br/>If conversion fails, please ensure you are using the link from Google Maps' "Share" function, not the address bar. If confirmed, please try converting again.</p>
+            <p><strong>💡 Tip:</strong><br/>Click the edit icon next to your username to change your display name.</p>
         `,
         history: 'History',
         favorites: 'Favorites',
@@ -88,6 +105,7 @@ export const I18N = {
         clear: 'Clear',
         noHistory: 'No recent history',
         noFavorites: 'No favorites yet',
+        noFavoritesYet: 'No favorites yet',
         addedToFav: 'Added to Favorites',
         removedFromFav: 'Removed from Favorites',
         shareLink: 'Share Link',
@@ -127,6 +145,21 @@ export const I18N = {
         synced: 'Synced',
         guest: 'Guest',
         loginToFavorite: 'Please login to manage favorites.',
-        loginRequired: 'Please login to access your favorites.'
+        loginRequired: 'Please login to access your favorites.',
+        notLoggedIn: 'Not signed in',
+        loginToViewFavorites: 'Sign in with Google to access your favorites',
+        // Folders & Dialogs
+        allFavorites: 'All Favorites',
+        uncategorized: 'Uncategorized',
+        newFolder: 'New Folder',
+        folderName: 'Folder Name',
+        createFolderPlaceholder: 'Enter folder name...',
+        deleteFolderTitle: 'Delete Folder',
+        deleteFolderConfirm: 'Delete this folder? Items will be moved to Uncategorized.',
+        moveToFolder: 'Move to Folder',
+        edit: 'Edit',
+        delete: 'Delete',
+        confirm: 'Confirm',
+        rename: 'Rename'
     }
 };

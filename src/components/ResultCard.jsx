@@ -33,9 +33,9 @@ export default function ResultCard({ result }) {
       }
   };
 
-  const handleSaveFavorite = (customName) => {
+  const handleSaveFavorite = (customName, folder) => {
       const timestamp = new Date().toISOString();
-      addFavorite({ ...result, timestamp }, customName);
+      addFavorite({ ...result, timestamp }, customName, folder);
       setIsModalOpen(false);
   };
   

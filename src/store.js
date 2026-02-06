@@ -26,6 +26,11 @@ const getInitialFavorites = () => {
         return JSON.parse(localStorage.getItem('gtc_favorites')) || [];
     } catch { return []; }
 };
+const getInitialFolders = () => {
+    try {
+        return JSON.parse(localStorage.getItem('gtc_folders')) || [];
+    } catch { return []; }
+};
 
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
@@ -37,6 +42,7 @@ export const useStore = create((set, get) => ({
   lang: getInitialLang(),
   history: getInitialHistory(),
   favorites: getInitialFavorites(),
+  folders: getInitialFolders(),
   user: null, // User state
 
   setUser: (user) => set({ user }),
@@ -120,24 +126,33 @@ export const useStore = create((set, get) => ({
               const localCache = JSON.parse(localStorage.getItem('gtc_location_cache')) || {};
               const mergedCache = { ...cloudCache, ...localCache };
 
+              // 5. Merge Folders (Cloud wins or merge unique?)
+              // Simple merge: Union
+              const cloudFolders = cloudData.folders || [];
+              const localFolders = get().folders;
+              const mergedFolders = [...new Set([...cloudFolders, ...localFolders])];
+
               // Update State & LocalStorage
               set({ 
                   favorites: mergedFavorites, 
                   history: mergedHistory,
-                  settings: mergedSettings 
+                  settings: mergedSettings,
+                  folders: mergedFolders
                   // Cache isn't in state to avoid re-renders, accessible via localStorage/method
               });
               localStorage.setItem('gtc_favorites', JSON.stringify(mergedFavorites));
               localStorage.setItem('gtc_history', JSON.stringify(mergedHistory));
               localStorage.setItem('gtc_settings', JSON.stringify(mergedSettings));
               localStorage.setItem('gtc_location_cache', JSON.stringify(mergedCache));
+              localStorage.setItem('gtc_folders', JSON.stringify(mergedFolders));
               
               // Write back merged data to Cloud
               await setDoc(userRef, { 
                   favorites: mergedFavorites,
                   history: mergedHistory,
                   settings: mergedSettings,
-                  locationCache: mergedCache
+                  locationCache: mergedCache,
+                  folders: mergedFolders
               }, { merge: true });
 
           } else {
@@ -147,7 +162,8 @@ export const useStore = create((set, get) => ({
                   favorites: get().favorites,
                   history: get().history,
                   settings: get().settings, // Also sync settings
-                  locationCache: localCache
+                  locationCache: localCache,
+                  folders: get().folders
               }, { merge: true });
           }
           
@@ -200,21 +216,6 @@ export const useStore = create((set, get) => ({
       // Update Location Cache if URL provided
       if (originalUrl) {
           const cache = JSON.parse(localStorage.getItem('gtc_location_cache')) || {};
-          // Sanitize URL key (firebase doesn't like . or / in keys sometimes, but for simple map object stored as field it's ok, 
-          // but better to hash or clean. For simplicity here assuming URL as key in map field is risky in Firestore dot notation.
-          // Better strategy: Cache is an array of {url, item} or we just rely on History for "previously searched".
-          // WAIT: User said "Look in DB first". So we need a map.
-          // Firestore Map keys have restrictions. Let's use MD5 or just store normalized URL.
-          // Simplified: We utilize the 'history' array as our cache source for now to avoid complexity of URL key encoding.
-          // Actually, let's persist a separate "locationCache" object in localStorage only for fast lookup, 
-          // and backup to Cloud as a JSON string or array if needed.
-          
-          // Let's go with robust solution:
-          // We will store cache in localStorage. We will sync it to cloud as a huge map.
-          // If URL contains dots/slashes, we might need a workaround for Firestore keys if we store as map field.
-          // Safer: Store cache as Array of objects { url: '...', result: ... } in Cloud.
-          // Local: Key-Value object for O(1) lookup.
-          
           cache[originalUrl] = item;
           localStorage.setItem('gtc_location_cache', JSON.stringify(cache));
       }
@@ -224,8 +225,6 @@ export const useStore = create((set, get) => ({
       if (user) {
           const userRef = doc(db, "users", user.uid);
           const cache = JSON.parse(localStorage.getItem('gtc_location_cache')) || {};
-          // Only syncing history here to save bandwidth, full sync happens on login/reload
-          // Or we can debounced sync. For now, immediate sync for reliability.
           setDoc(userRef, { history: newHistory, locationCache: cache }, { merge: true }).catch(console.error);
       }
 
@@ -242,8 +241,6 @@ export const useStore = create((set, get) => ({
 
   clearHistory: () => set((state) => {
       localStorage.removeItem('gtc_history');
-      // Should we clear cache? Probably not, user might just want to clear UI list. 
-      // User asked for "sync history", erasing history should sync too.
       
       const user = state.user;
       if (user) {
@@ -273,9 +270,9 @@ export const useStore = create((set, get) => ({
       return { favorites: newFavorites };
   }),
 
-  addFavorite: (item, customName) => set((state) => {
+  addFavorite: (item, customName, folder = null) => set((state) => {
       const filtered = state.favorites.filter(f => f.coords !== item.coords);
-      const newItem = { ...item, customName: customName }; 
+      const newItem = { ...item, customName: customName, folder: folder }; 
       const newFavorites = [newItem, ...filtered];
       localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
 
@@ -335,5 +332,56 @@ export const useStore = create((set, get) => ({
       }
 
       return { settings: newSettings };
+  }),
+
+  // Folder Actions
+  addFolder: (folderName) => set((state) => {
+      if (state.folders.includes(folderName)) return {};
+      const newFolders = [...state.folders, folderName];
+      localStorage.setItem('gtc_folders', JSON.stringify(newFolders));
+      
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { folders: newFolders }, { merge: true }).catch(console.error);
+      }
+      return { folders: newFolders };
+  }),
+
+  removeFolder: (folderName) => set((state) => {
+      const newFolders = state.folders.filter(f => f !== folderName);
+      
+      // Also remove folder from items in that folder (move to uncategorized)
+      const newFavorites = state.favorites.map(f => {
+          if (f.folder === folderName) {
+              return { ...f, folder: null };
+          }
+          return f;
+      });
+
+      localStorage.setItem('gtc_folders', JSON.stringify(newFolders));
+      localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
+      
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { folders: newFolders, favorites: newFavorites }, { merge: true }).catch(console.error);
+      }
+      return { folders: newFolders, favorites: newFavorites };
+  }),
+
+  moveToFolder: (coords, folderName) => set((state) => {
+      const newFavorites = state.favorites.map(f => {
+          if (f.coords === coords) {
+              return { ...f, folder: folderName };
+          }
+          return f;
+      });
+      
+      localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
+      
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { favorites: newFavorites }, { merge: true }).catch(console.error);
+      }
+      return { favorites: newFavorites };
   })
 }));

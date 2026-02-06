@@ -28,10 +28,12 @@ A powerful tool to convert Google Maps URLs into precise coordinates (Latitude, 
 - **Favorites Management**:
   - Save important locations for quick access.
   - **Custom Naming**: Rename favorites for easier identification.
+  - **Folders**: Organize favorites into custom folders for better management.
   - **Login Required**: Restricted access ensures your data is secure and personalized.
-  - **Smart Search**: Real-time filtering by name or coordinates.
+  - **Smart Search**: Real-time filtering by name, folder, or coordinates.
 
 #### ✨ Premium UI/UX
+- **Mobile-First Design**: Bottom tab navigation for easy one-handed use.
 - **Apple Aesthetic**: "Glassmorphism" design with liquid animated backgrounds and native-like interactions.
 - **Dark Mode**: Fully supports system dark mode with adaptive icons and mesh gradients.
 - **Smart Utilities**:
@@ -90,10 +92,12 @@ npm run dev
 - **收藏管理**：
   - 將重要地點加入最愛。
   - **自訂名稱**：可為收藏地點設定自訂名稱。
+  - **資料夾分類**：建立資料夾來整理您的收藏地點。
   - **權限控管**：需登入才能使用收藏功能，確保資料安全與個人化。
-  - **智慧搜尋**：支援透過名稱或座標即時篩選。
+  - **智慧搜尋**：支援透過名稱、資料夾或座標即時篩選。
 
 #### ✨ 頂級 UI/UX 體驗
+- **行動優先設計**：底部導航分頁，單手操作更輕鬆。
 - **Apple 風格**：流體動畫背景搭配「毛玻璃 (Glassmorphism)」設計。
 - **深色模式**：完整支援系統深色模式，搭配自適應圖示與動態網格背景。
 - **智慧小工具**：
