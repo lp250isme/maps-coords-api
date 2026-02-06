@@ -75,7 +75,8 @@ function App() {
       if (settings.directOpenTarget === 'apple') {
           targetUrl = `http://maps.apple.com/?q=${lat},${lon}`;
       } else if (settings.directOpenTarget === 'naver') {
-          targetUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`;
+          const naverUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`;
+          targetUrl = naverUrl;
       }
       
       if (targetUrl) {

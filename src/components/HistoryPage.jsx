@@ -90,7 +90,7 @@ export default function HistoryPage({ onSelect }) {
                     {/* Naver Maps */}
                     {settings.showNaverMap && (
                       <a
-                        href={`https://map.naver.com/p/search/${item.lat},${item.lon}`}
+                        href={`nmap://place?lat=${item.lat}&lng=${item.lon}&name=${encodeURIComponent(item.customName || item.placeName || 'Location')}&appname=https%3A%2F%2Fcomap.app/`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
