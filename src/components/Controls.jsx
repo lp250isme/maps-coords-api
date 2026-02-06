@@ -23,9 +23,11 @@ const ToggleItem = ({ label, icon, checked, onChange }) => (
 );
 
 export default function Controls({ onInfoClick, onHistoryClick, onFavoritesClick }) { 
-  const { theme, toggleTheme, lang, toggleLang, settings, toggleSetting } = useStore();
+  const { theme, toggleTheme, lang, toggleLang, settings, toggleSetting, user, login, logout, setUserName } = useStore();
   const t = I18N[lang];
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
   const handleAction = (action) => {
       action();
@@ -64,6 +66,68 @@ export default function Controls({ onInfoClick, onHistoryClick, onFavoritesClick
           >
               <div className="flex flex-col gap-1">
                   
+                  {/* User Profile / Login */}
+                  <div className="px-3 py-2">
+                      <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {user ? (
+                                  <>
+                                      <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-ios-border flex-shrink-0" />
+                                      <div className="flex flex-col items-start min-w-0 flex-1">
+                                          {isEditingName ? (
+                                              <input 
+                                                  autoFocus
+                                                  className="text-sm font-semibold text-text-primary bg-transparent border-b border-ios-blue outline-none w-full"
+                                                  defaultValue={user.customName || user.displayName}
+                                                  onBlur={(e) => {
+                                                      const val = e.target.value.trim();
+                                                      if (val) setUserName(val);
+                                                      setIsEditingName(false);
+                                                  }}
+                                                  onKeyDown={(e) => {
+                                                      if (e.key === 'Enter') {
+                                                          const val = e.currentTarget.value.trim();
+                                                          if (val) setUserName(val);
+                                                          setIsEditingName(false);
+                                                      }
+                                                  }}
+                                              />
+                                          ) : (
+                                              <span 
+                                                  className="text-sm font-semibold text-text-primary truncate w-full text-left cursor-text hover:text-ios-blue transition-colors"
+                                                  onClick={() => setIsEditingName(true)}
+                                                  title="Click to edit name"
+                                              >
+                                                  {user.customName || user.displayName}
+                                              </span>
+                                          )}
+                                          <span className="text-[10px] text-ios-blue font-medium text-left">{t.synced}</span>
+                                      </div>
+                                  </>
+                              ) : (
+                                  <button 
+                                      onClick={() => handleAction(login)}
+                                      className="flex items-center gap-3 w-full"
+                                  >
+                                      <div className="w-8 h-8 rounded-full bg-ios-gray/20 flex items-center justify-center text-text-secondary flex-shrink-0">
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                      </div>
+                                      <span className="text-sm font-medium text-ios-blue">{t.login}</span>
+                                  </button>
+                              )}
+                          </div>
+                          {user && (
+                              <button 
+                                  onClick={() => handleAction(logout)}
+                                  className="text-xs text-text-secondary hover:text-red-500 transition-colors px-2 py-1 ml-1"
+                              >
+                                  {t.logout}
+                              </button>
+                          )}
+                      </div>
+                  </div>
+                  <div className="h-[1px] bg-ios-border my-1 mx-2"></div>
+                  
                   {/* Favorites */}
                   <button 
                     onClick={() => handleAction(onFavoritesClick || onHistoryClick)} 
@@ -85,70 +149,93 @@ export default function Controls({ onInfoClick, onHistoryClick, onFavoritesClick
                   <div className="h-[1px] bg-ios-border my-1 mx-2"></div>
                   
                   {/* Settings Section */}
-                  <div className="px-3 py-1.5 text-xs font-semibold text-text-secondary uppercase tracking-wider opacity-70">
+                  <div 
+                    className="px-3 py-1.5 text-xs font-semibold text-text-secondary uppercase tracking-wider opacity-70 flex items-center justify-between cursor-pointer hover:opacity-100 transition-opacity mt-1"
+                    onClick={(e) => { e.stopPropagation(); setIsSettingsOpen(!isSettingsOpen); }}
+                  >
                       {t.settings.title}
+                      <motion.svg 
+                        animate={{ rotate: isSettingsOpen ? 180 : 0 }}
+                        className="w-3 h-3" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                      </motion.svg>
                   </div>
 
-                  {/* Theme */}
-                  <button 
-                    onClick={() => handleAction(toggleTheme)}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-button transition-colors w-full"
-                  >
-                      <span className="flex items-center gap-3 text-sm font-medium text-text-primary">
-                          {theme === 'dark' ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                          )}
-                          {theme === 'dark' ? t.lightMode : t.darkMode}
-                      </span>
-                  </button>
-
-                  {/* Language */}
-                  <button 
-                    onClick={() => handleAction(toggleLang)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left"
-                  >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h12M9 3v2m1.204 8.5c.912.6 1.844 1.235 2.791 1.874m0 0L16.204 19m-3.409-1.874l-3.208-4.898L6 19M5 13h14l-1.931-6h-3.38m0-1c0 1.25.996 2.5 1.708 3m-9.358 4C2.697 12.016 10 3 10 3"></path></svg>
-                      {t.toggleBtn}
-                  </button>
-                  
-                  <ToggleItem 
-                      label={t.settings.showCoords} 
-                      checked={settings.showCoords} 
-                      onChange={() => toggleSetting('showCoords')}
-                      icon={<svg className="w-4 h-4 text-[#007AFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>} 
-                  />
-                  <ToggleItem 
-                      label={t.settings.showDistance} 
-                      checked={settings.showDistance} 
-                      onChange={() => toggleSetting('showDistance')} 
-                      icon={<svg className="w-4 h-4 text-[#34C759]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>}
-                  />
-                  <ToggleItem 
-                      label={t.settings.showWeather} 
-                      checked={settings.showWeather} 
-                      onChange={() => toggleSetting('showWeather')} 
-                      icon={<svg className="w-4 h-4 text-[#FFCC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>}
-                  />
-                  <ToggleItem 
-                      label={t.settings.showAppleMap} 
-                      checked={settings.showAppleMap} 
-                      onChange={() => toggleSetting('showAppleMap')} 
-                      icon={<img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" alt="Apple" className={`w-4 h-4 object-contain ${theme === 'light' ? 'invert' : ''}`} />} 
-                  />
-                   <ToggleItem 
-                      label={t.settings.showNaverMap} 
-                      checked={settings.showNaverMap} 
-                      onChange={() => toggleSetting('showNaverMap')} 
-                      icon={<img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" alt="Naver" className="w-4 h-4 object-contain rounded-sm" />} 
-                  />
-                  <ToggleItem 
-                      label={t.settings.showMapPreview} 
-                      checked={settings.showMapPreview} 
-                      onChange={() => toggleSetting('showMapPreview')} 
-                      icon={<svg className="w-4 h-4 text-[#AF52DE]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>}
-                  />
+                  <AnimatePresence>
+                  {isSettingsOpen && (
+                      <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                      >
+                          {/* Theme */}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleAction(toggleTheme); }}
+                            className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-button transition-colors w-full"
+                          >
+                              <span className="flex items-center gap-3 text-sm font-medium text-text-primary">
+                                  {theme === 'dark' ? (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                  ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                                  )}
+                                  {theme === 'dark' ? t.lightMode : t.darkMode}
+                              </span>
+                          </button>
+        
+                          {/* Language */}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleAction(toggleLang); }}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left w-full"
+                          >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h12M9 3v2m1.204 8.5c.912.6 1.844 1.235 2.791 1.874m0 0L16.204 19m-3.409-1.874l-3.208-4.898L6 19M5 13h14l-1.931-6h-3.38m0-1c0 1.25.996 2.5 1.708 3m-9.358 4C2.697 12.016 10 3 10 3"></path></svg>
+                              {t.toggleBtn}
+                          </button>
+                          
+                          <ToggleItem 
+                              label={t.settings.showCoords} 
+                              checked={settings.showCoords} 
+                              onChange={() => toggleSetting('showCoords')}
+                              icon={<svg className="w-4 h-4 text-[#007AFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>} 
+                          />
+                          <ToggleItem 
+                              label={t.settings.showDistance} 
+                              checked={settings.showDistance} 
+                              onChange={() => toggleSetting('showDistance')} 
+                              icon={<svg className="w-4 h-4 text-[#34C759]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>}
+                          />
+                          <ToggleItem 
+                              label={t.settings.showWeather} 
+                              checked={settings.showWeather} 
+                              onChange={() => toggleSetting('showWeather')} 
+                              icon={<svg className="w-4 h-4 text-[#FFCC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>}
+                          />
+                          <ToggleItem 
+                              label={t.settings.showAppleMap} 
+                              checked={settings.showAppleMap} 
+                              onChange={() => toggleSetting('showAppleMap')} 
+                              icon={<img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" alt="Apple" className={`w-4 h-4 object-contain ${theme === 'light' ? 'invert' : ''}`} />} 
+                          />
+                           <ToggleItem 
+                              label={t.settings.showNaverMap} 
+                              checked={settings.showNaverMap} 
+                              onChange={() => toggleSetting('showNaverMap')} 
+                              icon={<img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" alt="Naver" className="w-4 h-4 object-contain rounded-sm" />} 
+                          />
+                          <ToggleItem 
+                              label={t.settings.showMapPreview} 
+                              checked={settings.showMapPreview} 
+                              onChange={() => toggleSetting('showMapPreview')} 
+                              icon={<svg className="w-4 h-4 text-[#AF52DE]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>}
+                          />
+                      </motion.div>
+                  )}
+                  </AnimatePresence>
 
                   <div className="h-[1px] bg-ios-border my-1 mx-2"></div>
 

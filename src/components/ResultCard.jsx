@@ -156,8 +156,7 @@ export default function ResultCard({ result }) {
                     title={isFavorite ? "Remove from favorites" : "Add to favorites"}
                 >
                     <svg 
-                        className={`w-6 h-6 transition-colors duration-200 ${isFavorite ? 'text-[#FFC107] fill-[#FFC107]' : 'text-text-tertiary hover:text-text-secondary'}`} 
-                        fill="none" 
+                        className={`w-6 h-6 transition-colors duration-200 ${isFavorite ? 'text-[#FFC107] fill-[#FFC107]' : 'text-gray-400 dark:text-gray-300 hover:text-text-secondary fill-none'}`} 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
                     >
