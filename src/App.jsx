@@ -16,7 +16,7 @@ import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 function App() {
-  const { theme, lang, initTheme, initLang, addToHistory, checkCache, setUser, syncData } = useStore();
+  const { theme, lang, initTheme, initLang, addToHistory, checkCache, setUser, syncData, settings, setAuthLoading } = useStore();
   const t = I18N[lang];
   
   const [url, setUrl] = useState('');
@@ -25,7 +25,13 @@ function App() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('home');
+  // Initialize from settings.startPage, only when there's no URL parameter
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasQuery = params.get('q') || params.get('url') || params.get('googleMapUrl');
+    if (hasQuery) return 'home'; // If converting URL, go to home
+    return settings.startPage || 'home';
+  });
   const lastConvertedUrl = React.useRef('');
 
   useEffect(() => {
@@ -35,6 +41,7 @@ function App() {
     // Firebase Auth Listener
     const unsubscribe = onAuthStateChanged(auth, (user) => {
         setUser(user);
+        setAuthLoading(false);
         if (user) {
             syncData(user);
         }
@@ -52,9 +59,30 @@ function App() {
         setUrl(query);
         setTimeout(() => {
             handleConvert(query, name); // Pass name to handler
+            // Clean URL after processing
+            window.history.replaceState({}, '', window.location.pathname);
         }, 500);
     }
   }, []);
+
+  // Direct Open Effect
+  useEffect(() => {
+    if (result && success && settings.directOpenTarget) {
+      const { lat, lon, placeName } = result;
+      const encodedName = encodeURIComponent(placeName || 'Location');
+      let targetUrl = '';
+      
+      if (settings.directOpenTarget === 'apple') {
+          targetUrl = `http://maps.apple.com/?q=${lat},${lon}`;
+      } else if (settings.directOpenTarget === 'naver') {
+          targetUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`;
+      }
+      
+      if (targetUrl) {
+          window.location.href = targetUrl;
+      }
+    }
+  }, [result, success, settings.directOpenTarget]);
 
   const handleConvert = async (directUrl, sharedName = null) => {
     const inputUrl = typeof directUrl === 'string' ? directUrl : url;
@@ -179,13 +207,13 @@ function App() {
 
   return (
     <div className={`
-        min-h-screen flex flex-col items-center w-full mx-auto text-center overflow-hidden transition-all duration-500 ease-out pb-16
+        h-[100dvh] flex flex-col items-center w-full mx-auto text-center overflow-hidden transition-all duration-500 ease-out pb-safe
         ${result && activeTab === 'home' ? 'bg-black/5' : ''}
     `}>
       
       {/* Main Content Wrapper */}
       <main className={`
-          flex-1 w-full flex flex-col px-5
+          flex-1 w-full flex flex-col px-5 overflow-hidden
           container mx-auto sm:max-w-[600px]
           transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1)
           ${activeTab === 'home' 
@@ -198,7 +226,7 @@ function App() {
         <motion.div 
             layout
             className={`
-                flex w-full z-10 mb-4
+                flex w-full z-10 mb-4 flex-shrink-0
                 ${showHeader 
                     ? 'flex-row items-center justify-start gap-3 mb-5 pl-0 h-10' 
                     : 'flex-col items-center justify-center gap-4'
@@ -256,7 +284,8 @@ function App() {
         </motion.div>
         
         {/* Page Content based on Active Tab */}
-        <AnimatePresence mode="wait">
+        <div className="flex-1 w-full relative overflow-hidden flex flex-col">
+          <AnimatePresence mode="wait">
           {activeTab === 'home' && (
             <motion.div
               key="home"
@@ -264,7 +293,7 @@ function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="w-full"
+              className="w-full h-full overflow-y-auto no-scrollbar pb-28"
             >
               {/* Input Section */}
               <motion.div 
@@ -337,7 +366,7 @@ function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="w-full flex-1"
+              className="w-full h-full overflow-hidden flex flex-col"
             >
               <FavoritesPage onSelect={handleSelectItem} />
             </motion.div>
@@ -350,7 +379,7 @@ function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="w-full flex-1"
+              className="w-full h-full overflow-hidden flex flex-col"
             >
               <HistoryPage onSelect={handleSelectItem} />
             </motion.div>
@@ -363,12 +392,13 @@ function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
-              className="w-full flex-1"
+              className="w-full h-full overflow-hidden flex flex-col"
             >
               <ProfilePage onInfoClick={() => setIsModalOpen(true)} />
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
           
       </main>
 

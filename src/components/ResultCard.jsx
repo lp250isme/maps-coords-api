@@ -7,7 +7,7 @@ import { I18N } from '../i18n';
 import FavoriteNameModal from './FavoriteNameModal';
 
 export default function ResultCard({ result }) {
-  const { lang, theme, settings, favorites, addFavorite, removeFavorite, user, login } = useStore();
+  const { lang, theme, settings, favorites, folders, addFavorite, removeFavorite, user, login, addFolder } = useStore();
   const t = I18N[lang];
   const { placeName, coords, lat, lon } = result;
   
@@ -35,6 +35,10 @@ export default function ResultCard({ result }) {
 
   const handleSaveFavorite = (customName, folder) => {
       const timestamp = new Date().toISOString();
+      // If folder is new, add it first
+      if (folder && !folders.includes(folder)) {
+          addFolder(folder);
+      }
       addFavorite({ ...result, timestamp }, customName, folder);
       setIsModalOpen(false);
   };
@@ -152,7 +156,8 @@ export default function ResultCard({ result }) {
             isOpen={isModalOpen} 
             onClose={() => setIsModalOpen(false)} 
             onSave={handleSaveFavorite}
-            initialName={placeName} 
+            initialName={placeName}
+            folders={folders}
             t={t}
         />
         <div id="resultCard" className="mt-6 p-6 bg-surface-card backdrop-blur-2xl shadow-ios-lg rounded-[28px] w-full text-left transition-all duration-300 border border-ios-border overflow-hidden">

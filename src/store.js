@@ -44,8 +44,10 @@ export const useStore = create((set, get) => ({
   favorites: getInitialFavorites(),
   folders: getInitialFolders(),
   user: null, // User state
+  isAuthLoading: true, // Auth initialized state
 
   setUser: (user) => set({ user }),
+  setAuthLoading: (loading) => set({ isAuthLoading: loading }),
 
   login: async () => {
       try {
@@ -318,7 +320,9 @@ export const useStore = create((set, get) => ({
       showWeather: true,
       showAppleMap: true,
       showNaverMap: true,
-      showMapPreview: true
+      showMapPreview: true,
+      startPage: 'home', // home, favorites, history
+      directOpenTarget: null // null (off), 'apple', 'naver'
   },
 
   toggleSetting: (key) => set((state) => {
@@ -326,6 +330,18 @@ export const useStore = create((set, get) => ({
       localStorage.setItem('gtc_settings', JSON.stringify(newSettings));
       
       // Cloud Sync
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { settings: newSettings }, { merge: true }).catch(console.error);
+      }
+
+      return { settings: newSettings };
+  }),
+
+  setSetting: (key, value) => set((state) => {
+      const newSettings = { ...state.settings, [key]: value };
+      localStorage.setItem('gtc_settings', JSON.stringify(newSettings));
+      
       const user = state.user;
       if (user) {
           setDoc(doc(db, "users", user.uid), { settings: newSettings }, { merge: true }).catch(console.error);
@@ -383,5 +399,25 @@ export const useStore = create((set, get) => ({
           setDoc(doc(db, "users", user.uid), { favorites: newFavorites }, { merge: true }).catch(console.error);
       }
       return { favorites: newFavorites };
+  }),
+
+  renameFolder: (oldName, newName) => set((state) => {
+      if (!newName.trim() || oldName === newName) return {};
+      if (state.folders.includes(newName)) return {}; // Don't allow duplicate names
+      
+      const newFolders = state.folders.map(f => f === oldName ? newName : f);
+      const newFavorites = state.favorites.map(f => ({
+          ...f,
+          folder: f.folder === oldName ? newName : f.folder
+      }));
+      
+      localStorage.setItem('gtc_folders', JSON.stringify(newFolders));
+      localStorage.setItem('gtc_favorites', JSON.stringify(newFavorites));
+      
+      const user = state.user;
+      if (user) {
+          setDoc(doc(db, "users", user.uid), { folders: newFolders, favorites: newFavorites }, { merge: true }).catch(console.error);
+      }
+      return { folders: newFolders, favorites: newFavorites };
   })
 }));
