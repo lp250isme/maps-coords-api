@@ -178,6 +178,24 @@ export default function ProfilePage({ onInfoClick }) {
           />
         </div>
 
+        {/* Download Shortcut */}
+        <div className="bg-surface-card rounded-2xl p-3 border border-ios-border mb-4">
+          <a 
+            href="https://www.icloud.com/shortcuts/41cc3c573d55462a9306b3324c04988f"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left w-full"
+          >
+            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <g fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="m9.852 14.633l-6.2-3.946a2 2 0 0 1 0-3.374l6.2-3.946a4 4 0 0 1 4.296 0l6.2 3.946a2 2 0 0 1 0 3.374l-6.2 3.946a4 4 0 0 1-4.296 0Z"></path>
+                <path d="m18.286 12l2.063 1.313a2 2 0 0 1 0 3.374l-6.201 3.946a4 4 0 0 1-4.296 0l-6.2-3.946a2 2 0 0 1 0-3.374L5.714 12"></path>
+              </g>
+            </svg>
+            {t.downloadShortcut || '下載捷徑'}
+          </a>
+        </div>
+
         {/* About */}
         <div className="bg-surface-card rounded-2xl p-3 border border-ios-border">
           <button 

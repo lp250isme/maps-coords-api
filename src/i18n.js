@@ -160,6 +160,7 @@ export const I18N = {
         edit: 'Edit',
         delete: 'Delete',
         confirm: 'Confirm',
-        rename: 'Rename'
+        rename: 'Rename',
+        downloadShortcut: 'Download Shortcut'
     }
 };

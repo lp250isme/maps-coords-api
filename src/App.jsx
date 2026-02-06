@@ -45,7 +45,7 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const query = params.get('q') || params.get('url');
+    const query = params.get('q') || params.get('url') || params.get('googleMapUrl');
     const name = params.get('name'); // Get name param
 
     if (query) {
