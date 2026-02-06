@@ -26,6 +26,13 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
              coordsStart.includes(searchLower);
   });
 
+  const filteredHistory = history.filter(item => {
+      const searchLower = searchTerm.toLowerCase();
+      const placeNameMatch = (item.placeName || '').toLowerCase().includes(searchLower);
+      const coordsMatch = (item.coords || '').toLowerCase().includes(searchLower);
+      return placeNameMatch || coordsMatch;
+  });
+
   // Sync active tab when initialTab changes or modal opens
   React.useEffect(() => {
     if (isOpen) {
@@ -96,17 +103,8 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                         </button>
                     </div>
 
-                    {/* Segmented Control */}
+                    {/* Segmented Control - Favorites first */}
                     <div className="bg-ios-gray/20 p-1 rounded-[10px] flex h-9 relative">
-                        <button 
-                            className={`
-                                flex-1 rounded-[8px] text-[13px] font-medium transition-all duration-200 z-10
-                                ${activeTab === 'history' ? 'bg-surface-card text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}
-                            `}
-                            onClick={() => setActiveTab('history')}
-                        >
-                            {t.history}
-                        </button>
                         <button 
                             className={`
                                 flex-1 rounded-[8px] text-[13px] font-medium transition-all duration-200 z-10
@@ -116,58 +114,60 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                         >
                             {t.favorites}
                         </button>
+                        <button 
+                            className={`
+                                flex-1 rounded-[8px] text-[13px] font-medium transition-all duration-200 z-10
+                                ${activeTab === 'history' ? 'bg-surface-card text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}
+                            `}
+                            onClick={() => setActiveTab('history')}
+                        >
+                            {t.history}
+                        </button>
                     </div>
                 </div>
 
-                {/* Search Bar (Favorites Only) */}
-                <AnimatePresence>
-                    {activeTab === 'favorites' && user && favorites.length > 0 && (
-                        <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="px-4 py-3 overflow-hidden"
-                        >
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg className="h-4 w-4 text-[var(--ios-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </div>
-                                <input
-                                    type="text"
-                                    className="block w-full pl-9 pr-8 py-0 border-none rounded-[10px] bg-[var(--input-bg)] text-[var(--ios-text-primary)] placeholder:text-[var(--ios-text-secondary)] focus:ring-0 transition-all text-[15px] h-[36px] outline-none leading-normal"
-                                    placeholder={t.search}
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                {searchTerm && (
-                                    <button
-                                        className="absolute inset-y-0 right-0 pr-2 flex items-center text-[var(--ios-text-secondary)] active:opacity-60"
-                                        onClick={() => setSearchTerm('')}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                            <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
-                                        </svg>
-                                    </button>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {/* Search Bar - Always visible */}
+                <div className="px-4 py-3">
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-4 w-4 text-[var(--ios-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            className="block w-full pl-9 pr-8 py-0 border-none rounded-[10px] bg-[var(--input-bg)] text-[var(--ios-text-primary)] placeholder:text-[var(--ios-text-secondary)] focus:ring-0 transition-all text-[15px] h-[36px] outline-none leading-normal"
+                            placeholder={t.search}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        {searchTerm && (
+                            <button
+                                className="absolute inset-y-0 right-0 pr-2 flex items-center text-[var(--ios-text-secondary)] active:opacity-60"
+                                onClick={() => setSearchTerm('')}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+
 
                 {/* List Content */}
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
                     {/* History List */}
                     {activeTab === 'history' && (
                         <>
-                            {history.length === 0 ? (
+                            {filteredHistory.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary text-sm">
-                                    {t.noHistory}
+                                    {searchTerm ? t.noSearchResults || 'No results found' : t.noHistory}
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-2">
-                                    {history.map((item, idx) => (
+                                    {filteredHistory.map((item, idx) => (
                                         <ListItem 
                                             key={idx} 
                                             item={item} 

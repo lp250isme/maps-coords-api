@@ -304,7 +304,7 @@ export default function ResultCard({ result }) {
                     exit={{ opacity: 0, height: 0 }}
                     className="rounded-2xl overflow-hidden border border-surface-button bg-surface-button relative z-0"
                 >
-                    <div className="aspect-[16/9] w-full relative">
+                    <div className="aspect-square w-full relative">
                         <iframe 
                             id="mapFrame" 
                             src={`https://www.google.com/maps?q=${lat},${lon}&z=15&output=embed`} 
