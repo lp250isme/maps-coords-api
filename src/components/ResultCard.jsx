@@ -7,7 +7,7 @@ import { I18N } from '../i18n';
 import FavoriteNameModal from './FavoriteNameModal';
 
 export default function ResultCard({ result }) {
-  const { lang, theme, settings, favorites, addFavorite, removeFavorite } = useStore();
+  const { lang, theme, settings, favorites, addFavorite, removeFavorite, user, login } = useStore();
   const t = I18N[lang];
   const { placeName, coords, lat, lon } = result;
   
@@ -19,6 +19,13 @@ export default function ResultCard({ result }) {
 
   const handleToggleFavorite = (e) => {
       e.stopPropagation();
+      if (!user) {
+          if (confirm(t.loginToFavorite || "Please login to manage favorites.")) {
+              login();
+          }
+          return;
+      }
+      
       if (isFavorite) {
           removeFavorite(coords);
       } else {
@@ -113,7 +120,10 @@ export default function ResultCard({ result }) {
   }
 
   const handleShareLink = async () => {
-      const shareUrl = `${window.location.origin}/?q=${lat},${lon}`;
+      let shareUrl = `${window.location.origin}/?q=${lat},${lon}`;
+      if (placeName && placeName !== `${lat}, ${lon}`) {
+          shareUrl += `&name=${encodeURIComponent(placeName)}`;
+      }
       const shareData = {
           title: 'GTC - ' + placeName,
           text: `Coords for ${placeName}: ${coords}`,

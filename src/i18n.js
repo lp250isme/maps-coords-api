@@ -60,7 +60,9 @@ export const I18N = {
         login: '登入 Google 進行同步',
         logout: '登出',
         synced: '已同步',
-        guest: '訪客'
+        guest: '訪客',
+        loginToFavorite: '請登入以管理收藏',
+        loginRequired: '請登入以查看您的收藏'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -123,6 +125,8 @@ export const I18N = {
         login: 'Sign in with Google',
         logout: 'Sign Out',
         synced: 'Synced',
-        guest: 'Guest'
+        guest: 'Guest',
+        loginToFavorite: 'Please login to manage favorites.',
+        loginRequired: 'Please login to access your favorites.'
     }
 };

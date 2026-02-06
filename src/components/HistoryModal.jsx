@@ -121,7 +121,7 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
 
                 {/* Search Bar (Favorites Only) */}
                 <AnimatePresence>
-                    {activeTab === 'favorites' && favorites.length > 0 && (
+                    {activeTab === 'favorites' && user && favorites.length > 0 && (
                         <motion.div 
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
@@ -173,7 +173,16 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                                             item={item} 
                                             onClick={() => { onSelect(item); onClose(); }} 
                                             isFav={favorites.some(f => f.coords === item.coords)}
-                                            onToggleFav={() => toggleFavorite(item)}
+                                            onToggleFav={() => {
+                                                if (!user) {
+                                                    if (confirm(t.loginToFavorite)) {
+                                                        const { login } = useStore.getState();
+                                                        login();
+                                                    }
+                                                    return;
+                                                }
+                                                toggleFavorite(item);
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -184,7 +193,23 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                     {/* Favorites List */}
                     {activeTab === 'favorites' && (
                         <>
-                            {filteredFavorites.length === 0 ? (
+                            {!user ? (
+                                <div className="flex flex-col items-center justify-center h-[300px] text-text-secondary text-base gap-4 px-6 text-center">
+                                    <div className="w-16 h-16 bg-ios-gray/10 rounded-full flex items-center justify-center mb-2">
+                                        <svg className="w-8 h-8 text-ios-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                    </div>
+                                    <p>{t.loginRequired || "Please login to access your favorites."}</p>
+                                    <button 
+                                        onClick={() => {
+                                             const { login } = useStore.getState();
+                                             login();
+                                        }}
+                                        className="bg-ios-blue text-white px-6 py-2.5 rounded-full font-medium shadow-ios-blue hover:bg-blue-600 active:scale-95 transition-all"
+                                    >
+                                        {t.login}
+                                    </button>
+                                </div>
+                            ) : filteredFavorites.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary text-sm">
                                     {searchTerm ? t.noResults : t.noFavorites}
                                 </div>
@@ -204,23 +229,14 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                                 </div>
                             )}
 
-                             {/* Sync Status Footer */}
+                             {/* Sync Status Footer - Only Show if User is Logged In (since Guest can't see list) */}
+                             {user && (
                              <div className="mt-4 pt-3 border-t border-ios-border/50 flex justify-between items-center text-xs text-text-secondary px-1">
-                                <span className={user ? 'text-green-500' : ''}>
-                                    {user ? `✓ ${t.synced} (${(user.customName || user.displayName).split(' ')[0]})` : t.guest}
+                                <span className="text-green-500">
+                                    {`✓ ${t.synced} (${(user.customName || user.displayName).split(' ')[0]})`}
                                 </span>
-                                {!user && (
-                                    <button 
-                                        onClick={() => {
-                                            const { login } = useStore.getState();
-                                            login();
-                                        }}
-                                        className="text-ios-blue font-medium active:opacity-60"
-                                    >
-                                        {t.login}
-                                    </button>
-                                )}
-                            </div>
+                             </div>
+                             )}
                         </>
                     )}
                 </div>

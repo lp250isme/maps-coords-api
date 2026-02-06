@@ -6,55 +6,55 @@
 
 ## English
 
-A powerful tool to convert Google Maps URLs into precise coordinates (Latitude, Longitude) and provide deep links to open them directly in **Apple Maps** or **Naver Map**.
+A powerful tool to convert Google Maps URLs into precise coordinates (Latitude, Longitude) and provide deep links to open them directly in **Apple Maps** or **Naver Map**. Now featuring Cloud Sync and a premium Apple-style interface.
 
 ![App Icon](public/icon.png)
 
 ### Features
 
-#### 🚀 Core API
-- **Advanced Extraction**: Uses multiple strategies to find coordinates (Meta tags, RPC requests, detailed JSON parsing).
-- **Smart Redirect Handling**: specific handling for `goo.gl`, `maps.app.goo.gl` redirects, and `ftid` shortcuts.
-- **Reliability**: 
-  - **Random User-Agent**: Rotates UAs to prevent blocking.
-  - **Fail-safe Strategies**: Implements timeouts (6s) and exponential backoff retries.
-  - **Priority Logic**: Carefully tuned priority to prefer precise "Pin" locations over generic viewports.
+#### 🚀 Core Functionality
+- **Smart Conversion**: Extracts coordinates from complex Google Maps URLs (including `goo.gl`, `maps.app.goo.gl`, and `ftid`).
+- **Reverse Geocoding**: Input coordinates (e.g., `25.03, 121.56`) to instantly generate actionable map cards.
+- **Deep Links**: One-click navigation in **Apple Maps** or **Naver Map**.
+- **Quick Share**: Generate deep links (e.g., `/?q=25.03,121.56&name=Taipei%20101`) that auto-convert when opened, preserving the place name for sharing.
 
-#### ✨ Frontend Interface
-- **Modern Design**: Apple-style "Glassmorphism" UI with liquid animated backgrounds.
-- **Dark Mode**: Fully supports system dark mode with animated dark mesh gradients and **Adaptive Icons** (switch between Blue/Black logic).
-- **Deep Links**: 
-  - **Apple Maps**: one-click navigation.
-  - **Naver Map**: Deep integration using `nmap://place` with name and app source preservation.
-- **i18n**: Support **English** and **Traditional Chinese** with language toggle button.
-- **User Friendly**: Custom error messages guiding users to use the "Share" link instead of the address bar if extraction fails.
+#### ☁️ Cloud Sync & User Profile
+- **Google Sign-In**: Login to sync your data across devices.
+- **Cross-Device Sync**: Favorites and History are automatically synced via Firebase.
+- **Smart Merge**: Seamlessly merges local guest data with cloud data upon login.
+
+#### ⭐️ History & Favorites
+- **History Log**: Automatically saves your last 20 conversions.
+- **Favorites Management**:
+  - Save important locations for quick access.
+  - **Custom Naming**: Rename favorites for easier identification.
+  - **Login Required**: Restricted access ensures your data is secure and personalized.
+  - **Smart Search**: Real-time filtering by name or coordinates.
+
+#### ✨ Premium UI/UX
+- **Apple Aesthetic**: "Glassmorphism" design with liquid animated backgrounds and native-like interactions.
+- **Dark Mode**: Fully supports system dark mode with adaptive icons and mesh gradients.
+- **Smart Utilities**:
+  - **📍 Distance**: Calculates linear distance from your current location.
+  - **🌤️ Weather**: Real-time weather info (Temp, Condition) via OpenMeteo.
+  - **📋 Auto-Copy**: Click coordinates to copy instantly.
+- **PWA**: Installable as a native-like app on iOS/Android (Offline support + Custom Icon).
 
 ### Usage
 
 #### Web Interface
 Simply visit the root URL (`/`), paste a Google Maps link, and click "Convert".
 
-#### API Endpoint
-GET `/api?url={GOOGLE_MAPS_URL}`
-
-**Input:**
-```
-https://maps.app.goo.gl/nNy5s3mhUjJx6ftz6
-```
-
-**Output:**
-```json
-{
-  "coords": "25.033976,121.564539",
-  "placeName": "Taipei 101"
-}
-```
+#### Key Shortcuts
+- **Paste & Go**: App auto-detects clipboard content on focus.
+- **Coordinates Input**: Directly type `lat,lon` to skip extraction.
 
 ### Tech Stack
-- **Runtime**: Node.js (Vercel Serverless Function)
-- **Frontend**: React + Vite
-- **State Management**: Zustand
-- **Styling**: Tailwind CSS + Custom Animations
+- **Framework**: React 18 + Vite
+- **State**: Zustand (Persisted + Firebase Sync)
+- **Styling**: Tailwind CSS + Framer Motion
+- **Backend**: Vercel Serverless Functions (Node.js)
+- **Cloud**: Firebase Auth & Firestore
 
 ### Local Development
 
@@ -70,53 +70,53 @@ npm run dev
 
 ## 繁體中文
 
-一個強大的工具，可將 Google Maps 網址轉換為精確的座標（經度、緯度），並提供直接在 **Apple Maps** 或 **Naver Map** 中開啟的深度連結。
+一個強大的工具，可將 Google Maps 網址轉換為精確的座標（經度、緯度），並提供直接在 **Apple Maps** 或 **Naver Map** 中開啟的深度連結。現已支援雲端同步與全新 Apple 風格介面。
 
 ### 功能特色
 
-#### 🚀 核心 API
-- **進階提取技術**：使用多種策略尋找座標（Meta 標籤、RPC 請求、詳細 JSON 解析）。
-- **智慧轉址處理**：針對 `goo.gl`、`maps.app.goo.gl` 轉址和 `ftid` 捷徑進行特殊處理。
-- **高可靠性**：
-  - **隨機 User-Agent**：輪替 UA 以防止被阻擋。
-  - **故障安全策略**：實作超時機制（6秒）和指數退避重試 (Exponential Backoff)。
-  - **優先級邏輯**：精心調整的優先順序，優先選擇精確的「大頭針」位置而非僅是視圖範圍。
+#### 🚀 核心功能
+- **智慧轉換**：支援各種複雜的 Google Maps 網址（包含 `goo.gl`、`maps.app.goo.gl` 和 `ftid` 捷徑）。
+- **反向地理編碼**：直接輸入座標（如 `25.03, 121.56`）即可生成地圖卡片。
+- **深度連結**：一鍵在 **Apple Maps** 或 **Naver Map** 中開啟導航。
+- **快速分享**：產生分享連結（如 `/?q=25.03,121.56&name=Taipei%20101`），開啟後自動轉換並保留地點名稱。
 
-#### ✨ 前端介面
-- **現代化設計**：具有流體動畫背景的 Apple 風格「毛玻璃 (Glassmorphism)」UI。
-- **深色模式 (Dark Mode)**：完全支援系統深色模式，搭配動畫網格漸層背景，以及 **自適應圖示**（根據模式切換 藍色/黑色 水滴圖示）。
-- **深度連結 (Deep Links)**：
-  - **Apple Maps**：一鍵導航。
-  - **Naver Map**：使用 `nmap://place` 進行深度整合，保留地點名稱與來源應用程式資訊。
-- **多語系支援**：支援 **英文** 與 **繁體中文**，並提供語言切換按鈕。
-- **使用者友善**：若提取失敗，會顯示自訂小提示，引導使用者使用 Google 地圖的「分享」連結而非直接複製網址列。
+#### ☁️ 雲端同步與個人化
+- **Google 登入**：登入後即可在多裝置間同步資料。
+- **跨裝置同步**：歷史紀錄與我的最愛皆透過 Firebase 自動備份。
+- **智慧合併**：登入時自動將訪客模式的資料合併至雲端帳號。
+
+#### ⭐️ 歷史紀錄與收藏
+- **歷史紀錄**：自動保存最近 20 筆轉換紀錄。
+- **收藏管理**：
+  - 將重要地點加入最愛。
+  - **自訂名稱**：可為收藏地點設定自訂名稱。
+  - **權限控管**：需登入才能使用收藏功能，確保資料安全與個人化。
+  - **智慧搜尋**：支援透過名稱或座標即時篩選。
+
+#### ✨ 頂級 UI/UX 體驗
+- **Apple 風格**：流體動畫背景搭配「毛玻璃 (Glassmorphism)」設計。
+- **深色模式**：完整支援系統深色模式，搭配自適應圖示與動態網格背景。
+- **智慧小工具**：
+  - **📍 距離計算**：顯示目標地點與您目前位置的直線距離。
+  - **🌤️ 天氣資訊**：即時顯示當地氣溫與天氣狀況 (OpenMeteo)。
+  - **📋 一鍵複製**：點擊座標即可快速複製。
+- **PWA 支援**：可安裝至手機桌面，提供接近原生 App 的體驗（支援離線使用）。
 
 ### 使用説明
 
 #### 網頁介面
 只需訪問根網址 (`/`)，貼上 Google Maps 連結，然後點擊「轉換」。
 
-#### API 端點
-GET `/api?url={GOOGLE_MAPS_URL}`
-
-**輸入:**
-```
-https://maps.app.goo.gl/nNy5s3mhUjJx6ftz6
-```
-
-**輸出:**
-```json
-{
-  "coords": "25.033976,121.564539",
-  "placeName": "Taipei 101"
-}
-```
+#### 快捷操作
+- **貼上即轉**：點擊輸入框時自動讀取剪貼簿內容。
+- **座標輸入**：直接輸入 `緯度,經度` 可跳過提取步驟直接顯示結果。
 
 ### 技術堆疊
-- **執行環境**: Node.js (Vercel Serverless Function)
-- **前端**: React + Vite
-- **狀態管理**: Zustand
-- **樣式**: Tailwind CSS + Custom Animations
+- **前端框架**: React 18 + Vite
+- **狀態管理**: Zustand (Persisted + Firebase Sync)
+- **樣式設計**: Tailwind CSS + Framer Motion
+- **後端 API**: Vercel Serverless Functions (Node.js)
+- **雲端服務**: Firebase Auth & Firestore
 
 ### 本地開發
 

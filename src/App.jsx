@@ -55,15 +55,17 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q') || params.get('url');
+    const name = params.get('name'); // Get name param
+
     if (query) {
         setUrl(query);
         setTimeout(() => {
-            handleConvert(query);
+            handleConvert(query, name); // Pass name to handler
         }, 500);
     }
   }, []);
 
-  const handleConvert = async (directUrl) => {
+  const handleConvert = async (directUrl, sharedName = null) => {
     const inputUrl = typeof directUrl === 'string' ? directUrl : url;
     if (!inputUrl.trim()) return;
 
@@ -82,7 +84,8 @@ function App() {
         
         const resultItem = {
             coords,
-            placeName: `${lat}, ${lon}`,
+            placeName: sharedName || `${lat}, ${lon}`, // Use shared name if available
+
             lat,
             lon,
             timestamp: Date.now()
