@@ -8,14 +8,15 @@ export const I18N = {
         coordsNotFound: '找不到座標',
         invalidUrl: '這不是有效的 Google Maps 網址',
         toggleBtn: 'English',
-        infoTitle: '關於 GTC',
+        infoTitle: '使用說明',
+        about: '使用說明',
         infoBody: `
             <p><strong>GTC (Google To Coords)</strong> 是一個快速將 Google Maps 網址轉換為經緯度座標的工具。</p>
-            <p><strong>🔗 使用方式：</strong><br/>從 Google Maps 複製地點的分享連結，貼上後點擊「轉換」即可取得精確座標。</p>
-            <p><strong>📂 收藏與分類：</strong><br/>您可以將常用的地點加入收藏，並建立資料夾進行分類管理，資料夾會自動同步至雲端。</p>
-            <p><strong>🗺️ 快速開啟：</strong><br/>轉換成功後，可一鍵在 <strong>Apple Maps</strong> 或 <strong>NAVER Maps</strong> 中開啟該地點進行導航。</p>
-            <p><strong>📋 複製座標：</strong><br/>點擊座標文字即可複製到剪貼簿。</p>
-            <p><strong>💡 小提示：</strong><br/>點擊使用者名稱旁的編輯圖示可修改顯示名稱。</p>
+            <p><strong>🔗 基本使用：</strong><br/>從 Google Maps 複製地點的分享連結，貼上後點擊「轉換」即可取得精確座標。</p>
+            <p><strong>📂 收藏與分類：</strong><br/>將地點加入收藏並建立資料夾分類，登入後可自動同步至雲端。</p>
+            <p><strong>🚀 直達目標地圖：</strong><br/>在設定中啟用「直達目標地圖」後，轉換成功將自動跳轉至 Apple Maps 或 Naver Maps。</p>
+            <p><strong>🗺️ 地圖預覽：</strong><br/>支援在應用內直接預覽地點位置，或點擊座標複製內容。</p>
+            <p><strong>📱 安裝 App：</strong><br/>支援 PWA，可將此網頁「加入主畫面」以獲得最佳體驗。</p>
         `,
         history: '歷史紀錄',
         favorites: '我的最愛',
@@ -78,7 +79,20 @@ export const I18N = {
         edit: '編輯',
         delete: '刪除',
         confirm: '確認',
-        rename: '重新命名'
+        rename: '重新命名',
+        startPage: '起始頁面',
+        openInApple: '在 Apple 地圖開啟',
+        openInNaver: '在 Naver 開啟',
+        selectFolder: '選擇資料夾',
+        newFolder: '新資料夾',
+        homeTab: '首頁',
+        favTab: '收藏',
+        historyTab: '歷史',
+        historyTab: '歷史',
+        noHistory: '尚無歷史紀錄',
+        directOpen: '直達目標地圖',
+        targetApp: '預設開啟地圖',
+        targetAppOff: '已關閉'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -89,14 +103,15 @@ export const I18N = {
         coordsNotFound: 'Coords not found',
         invalidUrl: 'Not a valid Google Maps URL',
         toggleBtn: '中文',
-        infoTitle: 'About GTC',
+        infoTitle: 'Usage Guide',
+        about: 'Usage Guide',
         infoBody: `
-            <p><strong>GTC (Google To Coords)</strong> is a tool that quickly converts Google Maps URLs into latitude and longitude coordinates.</p>
-            <p><strong>🔗 How to use:</strong><br/>Copy a location's share link from Google Maps, paste it, and click "Convert" to get precise coordinates.</p>
-            <p><strong>📂 Favorites & Folders:</strong><br/>Save locations to your favorites and organize them with folders. Folders are automatically synced to the cloud.</p>
-            <p><strong>🗺️ Quick Navigation:</strong><br/>After conversion, open the location directly in <strong>Apple Maps</strong> or <strong>NAVER Maps</strong> for navigation.</p>
-            <p><strong>📋 Copy Coordinates:</strong><br/>Click on the coordinates text to copy to clipboard.</p>
-            <p><strong>💡 Tip:</strong><br/>Click the edit icon next to your username to change your display name.</p>
+            <p><strong>GTC (Google To Coords)</strong> converts Google Maps URLs into coordinates.</p>
+            <p><strong>🔗 How to use:</strong><br/>Paste a Google Maps share link and click "Convert" to get coordinates.</p>
+            <p><strong>📂 Favorites & Sync:</strong><br/>Save locations and organize them with folders. Login to sync across devices.</p>
+            <p><strong>🚀 Direct Open:</strong><br/>Enable "Direct Open" in settings to automatically launch Apple/Naver Maps upon conversion.</p>
+            <p><strong>🗺️ Map Preview:</strong><br/>Preview location directly in-app or click coordinates to copy.</p>
+            <p><strong>📱 Install App:</strong><br/>Add to Home Screen for the best experience (PWA supported).</p>
         `,
         history: 'History',
         favorites: 'Favorites',
@@ -161,6 +176,16 @@ export const I18N = {
         delete: 'Delete',
         confirm: 'Confirm',
         rename: 'Rename',
-        downloadShortcut: 'Download Shortcut'
+        downloadShortcut: 'Download Shortcut',
+        startPage: 'Start Page',
+        openInNaver: 'Open in Naver',
+        selectFolder: 'Select Folder',
+        homeTab: 'Home',
+        favTab: 'Favorites',
+        historyTab: 'History',
+        noHistory: 'No history',
+        directOpen: 'Direct Open Map',
+        targetApp: 'Default Map App',
+        targetAppOff: 'Disabled'
     }
 };

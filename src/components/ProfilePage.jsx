@@ -25,13 +25,67 @@ const ToggleItem = ({ label, icon, checked, onChange }) => (
 export default function ProfilePage({ onInfoClick }) {
   const { 
     lang, theme, user, settings,
-    login, logout, toggleTheme, toggleLang, toggleSetting, setUserName
+    login, logout, toggleTheme, toggleLang, toggleSetting, setSetting, setUserName
   } = useStore();
   const t = I18N[lang];
   const [isEditingName, setIsEditingName] = useState(false);
+  const [showStartPageModal, setShowStartPageModal] = useState(false);
+  const [showDirectOpenModal, setShowDirectOpenModal] = useState(false);
+
+  const startPageOptions = [
+    { 
+      value: 'home', 
+      label: t.homeTab || 'Home', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      )
+    },
+    { 
+      value: 'favorites', 
+      label: t.favTab || 'Favorites', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+        </svg>
+      )
+    },
+    { 
+      value: 'history', 
+      label: t.historyTab || 'History', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    }
+  ];
+
+  const directOpenOptions = [
+    { 
+      value: null, 
+      label: t.targetAppOff || t.settings?.disabled || 'Disabled',
+      icon: (
+        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+        </svg>
+      )
+    },
+    { 
+      value: 'apple', 
+      label: 'Apple Maps', 
+      icon: <img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" alt="Apple" className={`w-5 h-5 object-contain ${theme === 'light' ? 'invert' : ''}`} />
+    },
+    { 
+      value: 'naver', 
+      label: 'Naver Maps', 
+      icon: <img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" alt="Naver" className="w-5 h-5 object-contain rounded-sm" />
+    }
+  ];
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-120px)]">
+    <div className="flex flex-col h-full overflow-y-auto pb-28 -mx-5 px-5">
       <div className="flex-1">
         {/* User Section */}
         <div className="bg-surface-card rounded-2xl p-4 border border-ios-border mb-4">
@@ -176,6 +230,44 @@ export default function ProfilePage({ onInfoClick }) {
             onChange={() => toggleSetting('showMapPreview')} 
             icon={<svg className="w-4 h-4 text-[#AF52DE]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>}
           />
+
+          <div className="h-[1px] bg-ios-border/50 my-1 mx-2"></div>
+
+          {/* Start Page - Custom Modal Trigger */}
+          <div 
+            className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-surface-button transition-colors cursor-pointer" 
+            onClick={() => setShowStartPageModal(true)}
+          >
+            <span className="flex items-center gap-3 text-sm font-medium text-text-primary">
+              <svg className="w-4 h-4 text-[#FF9500]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+              {t.startPage || 'Start Page'}
+            </span>
+            <div className="flex items-center gap-2 text-sm text-text-secondary">
+              <span>{startPageOptions.find(o => o.value === (settings.startPage || 'home'))?.label}</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="h-[1px] bg-ios-border/50 my-1 mx-2"></div>
+
+          {/* Direct Open - Custom Modal Trigger */}
+          <div 
+            className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-surface-button transition-colors cursor-pointer" 
+            onClick={() => setShowDirectOpenModal(true)}
+          >
+            <span className="flex items-center gap-3 text-sm font-medium text-text-primary">
+              <svg className="w-4 h-4 text-[#30D158]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              {t.directOpen || 'Direct Open'}
+            </span>
+            <div className="flex items-center gap-2 text-sm text-text-secondary">
+              <span>{directOpenOptions.find(o => o.value === settings.directOpenTarget)?.label || (t.targetAppOff || 'Disabled')}</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
         </div>
 
         {/* Download Shortcut */}
@@ -225,6 +317,130 @@ export default function ProfilePage({ onInfoClick }) {
         © {new Date().getFullYear()} kv. All rights reserved.
         <div className="mt-1">GTC v1.3.0</div>
       </footer>
+
+      {/* Start Page Selection Modal */}
+      <AnimatePresence>
+        {showStartPageModal && (
+          <>
+            <motion.div 
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowStartPageModal(false)}
+            />
+            <motion.div
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-surface-card rounded-2xl border border-ios-border shadow-2xl z-50 overflow-hidden max-w-sm mx-auto"
+              initial={{ opacity: 0, scale: 0.95, y: '-45%' }}
+              animate={{ opacity: 1, scale: 1, y: '-50%' }}
+              exit={{ opacity: 0, scale: 0.95, y: '-45%' }}
+            >
+              <div className="px-5 py-4 border-b border-ios-border">
+                <h3 className="text-lg font-semibold text-text-primary text-center">
+                  {t.startPage || 'Start Page'}
+                </h3>
+              </div>
+              <div className="p-3">
+                {startPageOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => { setSetting('startPage', option.value); setShowStartPageModal(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors mb-1 text-left ${
+                      settings.startPage === option.value || (!settings.startPage && option.value === 'home')
+                        ? 'bg-ios-blue/10 text-ios-blue' 
+                        : 'hover:bg-surface-button text-text-primary'
+                    }`}
+                  >
+                    {option.icon}
+                    <span className="font-medium">{option.label}</span>
+                    {(settings.startPage === option.value || (!settings.startPage && option.value === 'home')) && (
+                      <svg className="w-5 h-5 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="px-3 pb-3">
+                <button
+                  onClick={() => setShowStartPageModal(false)}
+                  className="w-full py-3 bg-surface-button text-text-primary rounded-xl font-medium text-sm hover:bg-surface-button-hover transition-colors"
+                >
+                  {t.cancel || 'Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Direct Open Selection Modal */}
+      <AnimatePresence>
+        {showDirectOpenModal && (
+          <>
+            <motion.div 
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDirectOpenModal(false)}
+            />
+            <motion.div
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-surface-card rounded-2xl border border-ios-border shadow-2xl z-50 overflow-hidden max-w-sm mx-auto"
+              initial={{ opacity: 0, scale: 0.95, y: '-45%' }}
+              animate={{ opacity: 1, scale: 1, y: '-50%' }}
+              exit={{ opacity: 0, scale: 0.95, y: '-45%' }}
+            >
+              <div className="px-5 py-4 border-b border-ios-border">
+                <h3 className="text-lg font-semibold text-text-primary text-center">
+                  {t.targetApp || 'Default Map App'}
+                </h3>
+              </div>
+              <div className="p-2">
+                {directOpenOptions.map((option) => (
+                  <button
+                    key={option.value || 'off'}
+                    onClick={() => {
+                      setSetting('directOpenTarget', option.value);
+                      setShowDirectOpenModal(false);
+                    }}
+                    className={`
+                      w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-left transition-colors
+                      ${settings.directOpenTarget === option.value 
+                        ? 'bg-ios-blue text-white shadow-ios-blue' 
+                        : 'text-text-primary hover:bg-surface-button'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`
+                        flex items-center justify-center
+                        ${settings.directOpenTarget === option.value ? 'text-white' : ''}
+                      `}>
+                        {option.icon}
+                      </span>
+                      <span className="font-medium text-[15px]">{option.label}</span>
+                    </div>
+                    {settings.directOpenTarget === option.value && (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="p-2 border-t border-ios-border">
+                <button
+                  onClick={() => setShowDirectOpenModal(false)}
+                  className="w-full py-3 text-center text-ios-blue font-semibold text-[17px] hover:bg-surface-button rounded-xl transition-colors"
+                >
+                  {t.cancel || 'Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

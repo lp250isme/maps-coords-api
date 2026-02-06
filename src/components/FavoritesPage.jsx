@@ -6,9 +6,9 @@ import FavoriteNameModal from './FavoriteNameModal';
 
 export default function FavoritesPage({ onSelect }) {
   const { 
-    lang, favorites, user, settings,
+    lang, favorites, user, settings, isAuthLoading,
     login, addFavorite, removeFavorite, 
-    folders = [], addFolder, removeFolder, moveToFolder 
+    folders = [], addFolder, removeFolder, moveToFolder, renameFolder 
   } = useStore();
   
   const t = I18N[lang];
@@ -38,8 +38,21 @@ export default function FavoritesPage({ onSelect }) {
   // Delete confirm state
   const [folderToDelete, setFolderToDelete] = useState(null);
   
-  // Move to folder state
-  const [showMoveDropdown, setShowMoveDropdown] = useState(null); // coords of item being moved
+  // Rename folder state
+  const [renamingFolder, setRenamingFolder] = useState(null);
+  const [renameFolderValue, setRenameFolderValue] = useState('');
+
+  // Lock body scroll when folder dropdown is open
+  useEffect(() => {
+    if (showFolderDropdown) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showFolderDropdown]);
 
   // Calculate folder counts
   const folderCounts = {
@@ -96,6 +109,10 @@ export default function FavoritesPage({ onSelect }) {
 
   const handleSaveEdit = (newName, folder) => {
     if (editingItem) {
+      // If folder is new, add it first
+      if (folder && !folders.includes(folder)) {
+        addFolder(folder);
+      }
       addFavorite(editingItem, newName, folder);
       setIsEditModalOpen(false);
       setEditingItem(null);
@@ -106,6 +123,14 @@ export default function FavoritesPage({ onSelect }) {
     moveToFolder(coords, targetFolder);
     setShowMoveDropdown(null);
   };
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-ios-gray/20 border-t-ios-blue"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -129,9 +154,9 @@ export default function FavoritesPage({ onSelect }) {
   }
 
   return (
-    <div className="">
+    <div className="flex flex-col h-full">
       {/* Folder Filter & Search */}
-      <div className="mb-4 relative z-40">
+      <div className="mb-1.5 relative z-40">
         <button
           onClick={() => setShowFolderDropdown(!showFolderDropdown)}
           className="w-full flex items-center justify-between px-4 py-3 bg-surface-button rounded-xl text-sm text-text-primary hover:bg-surface-button-hover transition-colors mb-3"
@@ -169,7 +194,50 @@ export default function FavoritesPage({ onSelect }) {
                transition={{ duration: 0.15, ease: "easeOut" }}
                className="absolute top-full left-0 right-0 mt-1 bg-surface-card border border-ios-border rounded-xl shadow-lg z-50 overflow-hidden backdrop-blur-3xl origin-top"
             >
-              <div className="max-h-[250px] overflow-y-auto">
+              {/* Add New Folder - Now at top */}
+              <div className="border-b border-ios-border">
+                {showNewFolderInput ? (
+                  <div className="flex items-center gap-2 p-3">
+                    <input
+                      type="text"
+                      autoFocus
+                      className="flex-1 px-3 py-2 bg-[var(--input-bg)] rounded-lg text-sm text-text-primary outline-none"
+                      placeholder={t.createFolderPlaceholder || 'Folder name'}
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddFolder()}
+                    />
+                    <button
+                      onClick={handleAddFolder}
+                      className="px-3 py-2 bg-ios-blue text-white rounded-lg text-sm font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => { setShowNewFolderInput(false); setNewFolderName(''); }}
+                      className="px-3 py-2 text-text-secondary"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNewFolderInput(true)}
+                    className="w-full text-left px-4 py-3 text-sm text-ios-blue font-medium hover:bg-surface-button transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    {t.newFolder || 'New Folder'}
+                  </button>
+                )}
+              </div>
+
+              <div className="max-h-[400px] overflow-y-auto">
                 {/* All Favorites */}
                 <button
                   onClick={() => { setSelectedFolder(null); setShowFolderDropdown(false); }}
@@ -186,68 +254,68 @@ export default function FavoritesPage({ onSelect }) {
                   {t.uncategorized || 'Uncategorized'} ({folderCounts.uncategorized})
                 </button>
                 
-                {/* User Folders */}
+                {/* User Folders with Rename */}
                 {folders.map(folder => (
                   <div key={folder} className="flex items-center justify-between hover:bg-surface-button transition-colors">
-                    <button
-                      onClick={() => { setSelectedFolder(folder); setShowFolderDropdown(false); }}
-                      className={`flex-1 text-left px-4 py-3 text-sm ${selectedFolder === folder ? 'text-ios-blue font-medium' : 'text-text-primary'}`}
-                    >
-                      {folder} ({folderCounts[folder] || 0})
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); confirmDeleteFolder(folder); }}
-                      className="px-3 py-3 text-red-500 hover:bg-red-500/10 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    {renamingFolder === folder ? (
+                      <div className="flex-1 flex items-center gap-2 px-3 py-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          className="flex-1 px-2 py-1 bg-[var(--input-bg)] rounded text-sm text-text-primary outline-none"
+                          value={renameFolderValue}
+                          onChange={(e) => setRenameFolderValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && renameFolderValue.trim()) {
+                              renameFolder(folder, renameFolderValue.trim());
+                              setRenamingFolder(null);
+                            }
+                            if (e.key === 'Escape') setRenamingFolder(null);
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (renameFolderValue.trim()) {
+                              renameFolder(folder, renameFolderValue.trim());
+                              setRenamingFolder(null);
+                            }
+                          }}
+                          className="p-1 text-ios-blue"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => { setSelectedFolder(folder); setShowFolderDropdown(false); }}
+                          className={`flex-1 text-left px-4 py-3 text-sm ${selectedFolder === folder ? 'text-ios-blue font-medium' : 'text-text-primary'}`}
+                        >
+                          {folder} ({folderCounts[folder] || 0})
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setRenamingFolder(folder); setRenameFolderValue(folder); }}
+                          className="px-2 py-3 text-text-secondary hover:text-ios-blue transition-colors"
+                          title={t.rename || 'Rename'}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); confirmDeleteFolder(folder); }}
+                          className="px-2 py-3 text-red-500 hover:bg-red-500/10 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
-                
-                {/* Add New Folder */}
-                <div className="border-t border-ios-border">
-                  {showNewFolderInput ? (
-                    <div className="flex items-center gap-2 p-3">
-                      <input
-                        type="text"
-                        autoFocus
-                        className="flex-1 px-3 py-2 bg-[var(--input-bg)] rounded-lg text-sm text-text-primary outline-none"
-                        placeholder={t.createFolderPlaceholder || 'Folder name'}
-                        value={newFolderName}
-                        onChange={(e) => setNewFolderName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddFolder()}
-                      />
-                      <button
-                        onClick={handleAddFolder}
-                        className="px-3 py-2 bg-ios-blue text-white rounded-lg text-sm font-medium"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => { setShowNewFolderInput(false); setNewFolderName(''); }}
-                        className="px-3 py-2 text-text-secondary"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowNewFolderInput(true)}
-                      className="w-full text-left px-4 py-3 text-sm text-ios-blue font-medium hover:bg-surface-button transition-colors flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
-                      {t.newFolder || 'New Folder'}
-                    </button>
-                  )}
-                </div>
               </div>
             </motion.div>
           )}
@@ -280,13 +348,15 @@ export default function FavoritesPage({ onSelect }) {
         )}
       </div>
 
-      {/* Favorites List */}
-      {filteredFavorites.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary text-sm">
-          {searchTerm ? (t.noSearchResults || 'No results found') : (t.noFavorites || 'No favorites yet')}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
+      {/* Favorites List - Scrollable Container */}
+      {/* List */}
+      <div className="flex-1 overflow-y-auto -mx-4 px-4 pb-28">
+        {filteredFavorites.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary text-sm">
+            {searchTerm ? (t.noSearchResults || 'No results found') : (t.noFavorites || 'No favorites yet')}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
           {filteredFavorites.map((item, idx) => (
             <motion.div
               key={item.coords + idx}
@@ -312,50 +382,40 @@ export default function FavoritesPage({ onSelect }) {
                 </div>
                 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-1">
-                  {/* Move to Folder */}
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setShowMoveDropdown(showMoveDropdown === item.coords ? null : item.coords);
-                      }}
-                      className="p-2 text-text-secondary hover:text-ios-blue transition-colors"
+                <div className="flex items-center gap-0.5">
+                  {/* Apple Maps */}
+                  {settings.showAppleMap && (
+                    <a
+                      href={`http://maps.apple.com/?q=${item.lat},${item.lon}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 text-text-secondary hover:text-text-primary transition-colors"
+                      title={t.openInApple || 'Open in Apple Maps'}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                      </svg>
-                    </button>
-                    
-                    {/* Move Dropdown */}
-                    {showMoveDropdown === item.coords && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-ios-card border border-ios-border rounded-xl shadow-lg z-[60] overflow-hidden backdrop-blur-3xl">
-                        <div className="text-xs text-text-secondary px-3 py-2 border-b border-ios-border">
-                          {t.moveToFolder || 'Move to folder'}
-                        </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleMoveToFolder(item.coords, null); }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-button ${!item.folder ? 'text-ios-blue' : 'text-text-primary'}`}
-                        >
-                          📄 {t.uncategorized || 'Uncategorized'}
-                        </button>
-                        {folders.map(folder => (
-                          <button
-                            key={folder}
-                            onClick={(e) => { e.stopPropagation(); handleMoveToFolder(item.coords, folder); }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-button ${item.folder === folder ? 'text-ios-blue' : 'text-text-primary'}`}
-                          >
-                            📁 {folder}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" alt="Apple" className="w-4 h-4 object-contain opacity-60 hover:opacity-100 transition-opacity dark:invert-0 invert" />
+                    </a>
+                  )}
+                  
+                  {/* Naver Maps */}
+                  {settings.showNaverMap && (
+                    <a
+                      href={`https://map.naver.com/p/search/${item.lat},${item.lon}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 text-text-secondary hover:text-text-primary transition-colors"
+                      title={t.openInNaver || 'Open in Naver'}
+                    >
+                      <img src="https://cdn.brandfetch.io/idy7-U4_1-/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1749526893278" alt="Naver" className="w-4 h-4 object-contain rounded-sm opacity-60 hover:opacity-100 transition-opacity" />
+                    </a>
+                  )}
                   
                   {/* Edit */}
                   <button
                     onClick={(e) => { e.stopPropagation(); handleEditFavorite(item); }}
                     className="p-2 text-text-secondary hover:text-ios-blue transition-colors"
+                    title={t.edit || 'Edit'}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -366,6 +426,7 @@ export default function FavoritesPage({ onSelect }) {
                   <button
                     onClick={(e) => { e.stopPropagation(); removeFavorite(item.coords); }}
                     className="p-2 text-[#FFC107] hover:text-[#FFA000] transition-colors"
+                    title={t.removeFavorite || 'Remove from favorites'}
                   >
                     <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                       <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -376,7 +437,8 @@ export default function FavoritesPage({ onSelect }) {
             </motion.div>
           ))}
         </div>
-      )}
+        )}
+      </div>
       
       {/* Edit Modal */}
       <FavoriteNameModal 
@@ -385,6 +447,7 @@ export default function FavoritesPage({ onSelect }) {
         onSave={handleSaveEdit}
         initialName={editingItem?.customName || editingItem?.placeName}
         initialFolder={editingItem?.folder}
+        folders={folders}
         t={t}
       />
       
@@ -434,14 +497,6 @@ export default function FavoritesPage({ onSelect }) {
           </div>
         )}
       </AnimatePresence>
-      
-      {/* Click outside to close move dropdown */}
-      {showMoveDropdown && (
-        <div 
-          className="fixed inset-0 z-50" 
-          onClick={() => setShowMoveDropdown(null)}
-        />
-      )}
     </div>
   );
 }
