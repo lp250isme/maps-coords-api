@@ -16,7 +16,10 @@ export default function InputSection({ url, setUrl, onAutoPaste, loading, succes
               const text = await navigator.clipboard.readText();
               if (text) {
                   setUrl(text);
-                  if (onAutoPaste) onAutoPaste(text);
+                  if (onAutoPaste) {
+                      onAutoPaste(text);
+                      inputRef.current?.blur();
+                  }
               }
           } catch (err) {
               console.log('Clipboard access denied or empty');
@@ -28,12 +31,14 @@ export default function InputSection({ url, setUrl, onAutoPaste, loading, succes
       const text = e.clipboardData.getData('text');
       if (text && onAutoPaste) {
           onAutoPaste(text);
+          inputRef.current?.blur();
       }
   };
 
   const handleKeyDown = (e) => {
       if(e.key === 'Enter') {
           onConvert();
+          inputRef.current?.blur();
       }
   };
 
@@ -104,7 +109,10 @@ export default function InputSection({ url, setUrl, onAutoPaste, loading, succes
             onClick={(e) => {
                 e.stopPropagation();
                 const isValid = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/.test(url.trim()) || /^(https?:\/\/|www\.|goo\.gl|maps\.)/i.test(url.trim());
-                if (url.trim() && isValid && !loading && !success) onConvert();
+                if (url.trim() && isValid && !loading && !success) {
+                    onConvert();
+                    inputRef.current?.blur();
+                }
             }}
             disabled={
                 !url.trim() || 

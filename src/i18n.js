@@ -18,6 +18,8 @@ export const I18N = {
         `,
         history: '歷史紀錄',
         favorites: '我的最愛',
+        search: '搜尋',
+        noResults: '沒有符合的結果',
         clear: '清除',
         noHistory: '暫無歷史紀錄',
         noFavorites: '暫無收藏地點',
@@ -54,7 +56,11 @@ export const I18N = {
         favModalPlaceholder: '地點名稱',
         save: '儲存',
         cancel: '取消', 
-        linkCopied: '連結已複製到剪貼簿！'
+        linkCopied: '連結已複製到剪貼簿！',
+        login: '登入 Google 進行同步',
+        logout: '登出',
+        synced: '已同步',
+        guest: '訪客'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -75,6 +81,8 @@ export const I18N = {
         `,
         history: 'History',
         favorites: 'Favorites',
+        search: 'Search',
+        noResults: 'No results found',
         clear: 'Clear',
         noHistory: 'No recent history',
         noFavorites: 'No favorites yet',
@@ -111,6 +119,10 @@ export const I18N = {
         favModalPlaceholder: 'Location Name',
         save: 'Save',
         cancel: 'Cancel',
-        linkCopied: 'Link copied to clipboard!'
+        linkCopied: 'Link copied to clipboard!',
+        login: 'Sign in with Google',
+        logout: 'Sign Out',
+        synced: 'Synced',
+        guest: 'Guest'
     }
 };

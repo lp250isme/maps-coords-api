@@ -10,8 +10,11 @@ import ResultCard from './components/ResultCard';
 import InfoModal from './components/InfoModal';
 import HistoryModal from './components/HistoryModal';
 
+import { auth } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+
 function App() {
-  const { theme, lang, initTheme, initLang, addToHistory } = useStore();
+  const { theme, lang, initTheme, initLang, addToHistory, checkCache, setUser, syncData } = useStore();
   const t = I18N[lang];
   
   const [url, setUrl] = useState('');
@@ -37,6 +40,16 @@ function App() {
   useEffect(() => {
     initTheme();
     initLang();
+
+    // Firebase Auth Listener
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        if (user) {
+            syncData(user);
+        }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -84,6 +97,21 @@ function App() {
         return; 
     }
 
+    // 2. Check Cache (Database/Local)
+    const cachedResult = checkCache(inputUrl.trim());
+    if (cachedResult) {
+        console.log("Cache Hit:", cachedResult.placeName);
+        setResult(cachedResult);
+        // Refresh timestamp in history
+        addToHistory({ ...cachedResult, timestamp: Date.now() }, inputUrl.trim());
+        
+        lastConvertedUrl.current = inputUrl.trim();
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 1500);
+        setIsLoading(false);
+        return;
+    }
+
     try {
       const res = await axios.get('/api', {
         params: { url: inputUrl.trim() }
@@ -107,7 +135,8 @@ function App() {
       };
 
       setResult(resultItem);
-      addToHistory(resultItem);
+      // Pass Original URL to addToHistory for Caching
+      addToHistory(resultItem, inputUrl.trim());
       
       lastConvertedUrl.current = inputUrl.trim();
       

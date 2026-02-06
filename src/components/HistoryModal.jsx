@@ -3,10 +3,28 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
 import { I18N } from '../i18n';
 
+import FavoriteNameModal from './FavoriteNameModal';
+
 export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = 'history' }) {
-  const { lang, history, favorites, clearHistory, toggleFavorite } = useStore();
+  const { lang, history, favorites, clearHistory, toggleFavorite, addFavorite, user } = useStore();
   const t = I18N[lang];
   const [activeTab, setActiveTab] = useState('history');
+  
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredFavorites = favorites.filter(item => {
+      const searchLower = searchTerm.toLowerCase();
+      const customNameStart = (item.customName || '').toLowerCase();
+      const placeNameStart = (item.placeName || '').toLowerCase();
+      const coordsStart = (item.coords || '').toLowerCase();
+      
+      return customNameStart.includes(searchLower) || 
+             placeNameStart.includes(searchLower) || 
+             coordsStart.includes(searchLower);
+  });
 
   // Sync active tab when initialTab changes or modal opens
   React.useEffect(() => {
@@ -14,6 +32,19 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
         setActiveTab(initialTab);
     }
   }, [isOpen, initialTab]);
+
+  const handleEditFavorite = (item) => {
+      setEditingItem(item);
+      setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = (newName) => {
+      if (editingItem) {
+          addFavorite(editingItem, newName);
+          setIsEditModalOpen(false);
+          setEditingItem(null);
+      }
+  };
 
   return (
     <AnimatePresence>
@@ -28,6 +59,14 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                 if (e.target === e.currentTarget) onClose();
             }}
         >
+            <FavoriteNameModal 
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={handleSaveEdit}
+                initialName={editingItem?.customName || editingItem?.placeName}
+                t={t}
+            />
+            
             <motion.div 
                 initial={{ scale: 0.95, opacity: 0, y: 30 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -80,9 +119,46 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                     </div>
                 </div>
 
+                {/* Search Bar (Favorites Only) */}
+                <AnimatePresence>
+                    {activeTab === 'favorites' && favorites.length > 0 && (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="px-4 py-3 overflow-hidden"
+                        >
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg className="h-4 w-4 text-[var(--ios-text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </div>
+                                <input
+                                    type="text"
+                                    className="block w-full pl-9 pr-8 py-0 border-none rounded-[10px] bg-[var(--input-bg)] text-[var(--ios-text-primary)] placeholder:text-[var(--ios-text-secondary)] focus:ring-0 transition-all text-[15px] h-[36px] outline-none leading-normal"
+                                    placeholder={t.search}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                {searchTerm && (
+                                    <button
+                                        className="absolute inset-y-0 right-0 pr-2 flex items-center text-[var(--ios-text-secondary)] active:opacity-60"
+                                        onClick={() => setSearchTerm('')}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                            <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* List Content */}
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-hide">
-                    {/* ... (Kept as is, lists render simply) */}
+                    {/* History List */}
                     {activeTab === 'history' && (
                         <>
                             {history.length === 0 ? (
@@ -105,25 +181,46 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
                         </>
                     )}
 
+                    {/* Favorites List */}
                     {activeTab === 'favorites' && (
                         <>
-                            {favorites.length === 0 ? (
+                            {filteredFavorites.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary text-sm">
-                                    {t.noFavorites}
+                                    {searchTerm ? t.noResults : t.noFavorites}
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-2">
-                                    {favorites.map((item, idx) => (
+                                    {filteredFavorites.map((item, idx) => (
                                         <ListItem 
                                             key={idx} 
                                             item={item} 
+                                            name={item.customName || item.placeName}
                                             onClick={() => { onSelect(item); onClose(); }} 
                                             isFav={true}
                                             onToggleFav={() => toggleFavorite(item)}
+                                            onEdit={() => handleEditFavorite(item)}
                                         />
                                     ))}
                                 </div>
                             )}
+
+                             {/* Sync Status Footer */}
+                             <div className="mt-4 pt-3 border-t border-ios-border/50 flex justify-between items-center text-xs text-text-secondary px-1">
+                                <span className={user ? 'text-green-500' : ''}>
+                                    {user ? `✓ ${t.synced} (${(user.customName || user.displayName).split(' ')[0]})` : t.guest}
+                                </span>
+                                {!user && (
+                                    <button 
+                                        onClick={() => {
+                                            const { login } = useStore.getState();
+                                            login();
+                                        }}
+                                        className="text-ios-blue font-medium active:opacity-60"
+                                    >
+                                        {t.login}
+                                    </button>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>
@@ -134,33 +231,48 @@ export default function HistoryModal({ isOpen, onClose, onSelect, initialTab = '
   );
 }
 
-function ListItem({ item, onClick, isFav, onToggleFav }) {
+function ListItem({ item, name, onClick, isFav, onToggleFav, onEdit }) {
+    const displayName = name || item.placeName;
+    
     return (
         <div className="flex items-center bg-surface-button/50 hover:bg-surface-button transition-colors rounded-xl p-3 pr-2 group">
             <div className="flex-1 cursor-pointer min-w-0 text-left" onClick={onClick}>
-                <div className="text-text-primary font-medium text-sm truncate pr-2">{item.placeName}</div>
+                <div className="text-text-primary font-medium text-sm truncate pr-2">{displayName}</div>
                 <div className="text-text-secondary text-xs truncate mt-0.5 font-mono opacity-80">{item.coords}</div>
             </div>
             
-            <button 
-                className="w-10 h-10 flex items-center justify-center focus:outline-none active:scale-90 transition-transform group-hover:scale-110"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleFav();
-                }}
-            >
-                <svg 
-                    className={`w-6 h-6 transition-colors duration-200 ${isFav ? 'text-[#FFC107]' : 'text-text-secondary hover:text-text-primary'}`}
-                    fill={isFav ? "currentColor" : "none"} 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
+            <div className="flex items-center gap-1">
+                {onEdit && (
+                    <button 
+                        className="w-8 h-8 flex items-center justify-center focus:outline-none text-text-secondary hover:text-text-primary transition-colors active:scale-95"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit();
+                        }}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                    </button>
+                )}
+                
+                <button 
+                    className="w-10 h-10 flex items-center justify-center focus:outline-none active:scale-90 transition-transform group-hover:scale-110"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFav();
+                    }}
                 >
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                </svg>
-            </button>
+                    <svg 
+                        className={`w-6 h-6 transition-colors duration-200 ${isFav ? 'text-[#FFC107] fill-[#FFC107]' : 'text-gray-400 dark:text-gray-300 hover:text-text-secondary'}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                </button>
+            </div>
         </div>
     );
 }
