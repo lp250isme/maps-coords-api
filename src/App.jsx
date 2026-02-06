@@ -4,11 +4,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from './store';
 import { I18N } from './i18n';
 import Header from './components/Header';
-import Controls from './components/Controls';
 import InputSection from './components/InputSection';
 import ResultCard from './components/ResultCard';
 import InfoModal from './components/InfoModal';
-import HistoryModal from './components/HistoryModal';
+import BottomTabBar from './components/BottomTabBar';
+import FavoritesPage from './components/FavoritesPage';
+import HistoryPage from './components/HistoryPage';
+import ProfilePage from './components/ProfilePage';
 
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -23,19 +25,8 @@ function App() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [historyTab, setHistoryTab] = useState('history'); 
+  const [activeTab, setActiveTab] = useState('home');
   const lastConvertedUrl = React.useRef('');
-
-  const openHistory = () => {
-      setHistoryTab('history');
-      setIsHistoryOpen(true);
-  };
-
-  const openFavorites = () => {
-      setHistoryTab('favorites');
-      setIsHistoryOpen(true);
-  };
 
   useEffect(() => {
     initTheme();
@@ -54,7 +45,7 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const query = params.get('q') || params.get('url');
+    const query = params.get('q') || params.get('url') || params.get('googleMapUrl');
     const name = params.get('name'); // Get name param
 
     if (query) {
@@ -84,8 +75,7 @@ function App() {
         
         const resultItem = {
             coords,
-            placeName: sharedName || `${lat}, ${lon}`, // Use shared name if available
-
+            placeName: sharedName || `${lat}, ${lon}`, 
             lat,
             lon,
             timestamp: Date.now()
@@ -105,7 +95,6 @@ function App() {
     if (cachedResult) {
         console.log("Cache Hit:", cachedResult.placeName);
         setResult(cachedResult);
-        // Refresh timestamp in history
         addToHistory({ ...cachedResult, timestamp: Date.now() }, inputUrl.trim());
         
         lastConvertedUrl.current = inputUrl.trim();
@@ -138,7 +127,6 @@ function App() {
       };
 
       setResult(resultItem);
-      // Pass Original URL to addToHistory for Caching
       addToHistory(resultItem, inputUrl.trim());
       
       lastConvertedUrl.current = inputUrl.trim();
@@ -170,86 +158,114 @@ function App() {
         setUrl('');
         setError('');
         setSuccess(false);
-        lastConvertedUrl.current = ''; // Reset duplicate check
+        lastConvertedUrl.current = ''; 
     }
   };
 
+  const handleSelectItem = (item) => {
+    setResult({
+      coords: item.coords,
+      placeName: item.customName || item.placeName,
+      lat: item.lat,
+      lon: item.lon
+    });
+    setActiveTab('home');
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 1500);
+  };
+
+  // Determine if header should be shown (non-home tabs or home with result)
+  const showHeader = activeTab !== 'home' || result;
+
   return (
     <div className={`
-        min-h-screen flex flex-col items-center w-full mx-auto text-center overflow-hidden transition-all duration-500 ease-out
-        ${result ? 'bg-black/5' : ''}
+        min-h-screen flex flex-col items-center w-full mx-auto text-center overflow-hidden transition-all duration-500 ease-out pb-16
+        ${result && activeTab === 'home' ? 'bg-black/5' : ''}
     `}>
       
-      {/* Controls (Fixed Top Right) */}
-      <div className="fixed top-4 right-4 z-50 sm:top-6 sm:right-6">
-          <Controls 
-            onInfoClick={() => setIsModalOpen(true)}
-            onHistoryClick={openHistory}
-            onFavoritesClick={openFavorites}
-          />
-      </div>
-
-      {/* Main Content Wrapper - Takes available space */}
+      {/* Main Content Wrapper */}
       <main className={`
           flex-1 w-full flex flex-col px-5
           container mx-auto sm:max-w-[600px]
           transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1)
-          ${result ? 'pt-4 sm:pt-6 justify-start' : 'pt-[30vh] justify-start'}
+          ${activeTab === 'home' 
+            ? (result ? 'pt-4 sm:pt-6 justify-start' : 'pt-[30vh] justify-start')
+            : 'pt-4 sm:pt-6 justify-start'
+          }
       `}>
 
-          {/* Persistent Layout Container */}
-          <motion.div 
-              layout
-              className={`
-                  flex w-full z-10 mb-4
-                  ${result 
-                      ? 'flex-row items-center justify-start gap-3 mb-5 pl-0 h-10' 
-                      : 'flex-col items-center justify-center gap-4'
+        {/* Persistent Layout Container - Header (for Home tab, animated; for other tabs, static) */}
+        <motion.div 
+            layout
+            className={`
+                flex w-full z-10 mb-4
+                ${showHeader 
+                    ? 'flex-row items-center justify-start gap-3 mb-5 pl-0 h-10' 
+                    : 'flex-col items-center justify-center gap-4'
+                }
+            `}
+        >
+            {/* Icon Container */}
+            <motion.div 
+                layout
+                className={`
+                    relative z-20 flex-shrink-0
+                    ${activeTab === 'home' && result ? 'cursor-pointer active:scale-95' : ''}
+                `}
+                onClick={() => {
+                  if (activeTab === 'home') {
+                    // On home tab: reset the result
+                    handleReset();
+                  } else {
+                    // On other tabs: just switch back to home (preserve result)
+                    setActiveTab('home');
                   }
-              `}
-          >
-              {/* Icon Container */}
-              <motion.div 
-                  layout
-                  className={`
-                      relative z-20 flex-shrink-0
-                      ${result ? 'cursor-pointer active:scale-95' : ''}
-                  `}
-                  onClick={handleReset}
-                  animate={{ 
-                      scale: result ? 1 : 1.5,
-                  }}
-                  transition={{ 
-                      type: "spring", 
-                      stiffness: 200, 
-                      damping: 25
-                  }}
-              >
-                  <Header />
-              </motion.div>
-              
-              {/* App Name */}
-              <motion.h1 
-                  layout="position"
-                  animate={{ 
-                      opacity: 1, 
-                      scale: result ? 1 : 1.2, 
-                      originX: result ? 0 : 0.5,
-                      originY: 0.5
-                  }}
-                  transition={{ 
-                      type: "spring", 
-                      stiffness: 200, 
-                      damping: 25 
-                  }}
-                  className={`
-                      font-bold tracking-tight text-text-primary whitespace-nowrap overflow-hidden text-lg
-                  `}
-              >
-                  GTC
-              </motion.h1>
-          </motion.div>
-              
+                }}
+                animate={{ 
+                    scale: showHeader ? 1 : 1.5,
+                }}
+                transition={{ 
+                    type: "spring", 
+                    stiffness: 200, 
+                    damping: 25
+                }}
+            >
+                <Header />
+            </motion.div>
+            
+            {/* App Name */}
+            <motion.h1 
+                layout="position"
+                animate={{ 
+                    opacity: 1, 
+                    scale: showHeader ? 1 : 1.2, 
+                    originX: showHeader ? 0 : 0.5,
+                    originY: 0.5
+                }}
+                transition={{ 
+                    type: "spring", 
+                    stiffness: 200, 
+                    damping: 25 
+                }}
+                className={`
+                    font-bold tracking-tight text-text-primary whitespace-nowrap overflow-hidden text-lg
+                `}
+            >
+                GTC
+            </motion.h1>
+        </motion.div>
+        
+        {/* Page Content based on Active Tab */}
+        <AnimatePresence mode="wait">
+          {activeTab === 'home' && (
+            <motion.div
+              key="home"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="w-full"
+            >
               {/* Input Section */}
               <motion.div 
                   layout
@@ -278,65 +294,90 @@ function App() {
                   />
               </motion.div>
           
-          {/* Error & Result */}
-          <div className="w-full relative min-h-[50px] z-0">
-            <AnimatePresence>
-                {error && !result && (
-                    <motion.p 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="text-[#FF3B30] text-sm mt-3 absolute w-full left-0 text-center"
-                    >
-                        {error}
-                    </motion.p>
-                )}
-            </AnimatePresence>
-            
-            <AnimatePresence mode="popLayout">
-                {result && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 50, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 50, scale: 0.95 }}
-                        transition={{ 
-                            type: "spring", 
-                            stiffness: 300, 
-                            damping: 30, 
-                            delay: 0.2 // Delay slightly to let layout settle
-                        }}
-                    >
-                        <ResultCard result={result} />
-                    </motion.div>
-                )}
-            </AnimatePresence>
-          </div>
+              {/* Error & Result */}
+              <div className="w-full relative min-h-[50px] z-0">
+                <AnimatePresence>
+                    {error && !result && (
+                        <motion.p 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="text-[#FF3B30] text-sm mt-3 absolute w-full left-0 text-center"
+                        >
+                            {error}
+                        </motion.p>
+                    )}
+                </AnimatePresence>
+                
+                <AnimatePresence mode="popLayout">
+                    {result && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                            transition={{ 
+                                type: "spring", 
+                                stiffness: 300, 
+                                damping: 30, 
+                                delay: 0.2
+                            }}
+                        >
+                            <ResultCard result={result} />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'favorites' && (
+            <motion.div
+              key="favorites"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1"
+            >
+              <FavoritesPage onSelect={handleSelectItem} />
+            </motion.div>
+          )}
+
+          {activeTab === 'history' && (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1"
+            >
+              <HistoryPage onSelect={handleSelectItem} />
+            </motion.div>
+          )}
+
+          {activeTab === 'profile' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1"
+            >
+              <ProfilePage onInfoClick={() => setIsModalOpen(true)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
           
       </main>
 
-      {/* Footer - Always visible, fixed at bottom flow */}
-      <footer 
-        className="w-full py-6 text-center text-[10px] text-text-secondary font-medium shrink-0"
-      >
-          © {new Date().getFullYear()} kv. All rights reserved.
-      </footer>
+
+      
+      {/* Bottom Tab Bar */}
+      <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
       
       <InfoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      <HistoryModal 
-          isOpen={isHistoryOpen} 
-          onClose={() => setIsHistoryOpen(false)} 
-          initialTab={historyTab}
-          onSelect={(item) => {
-              setResult({
-                  coords: item.coords,
-                  placeName: item.placeName,
-                  lat: item.lat,
-                  lon: item.lon
-              });
-              setSuccess(true);
-              setTimeout(() => setSuccess(false), 1500);
-          }}
-      />
     </div>
   );
 }
