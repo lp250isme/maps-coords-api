@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useStore } from '../store';
 import { I18N } from '../i18n';
+import ConfirmModal from './ConfirmModal';
 
 export default function HistoryPage({ onSelect }) {
-  const { lang, history, favorites, toggleFavorite, user, login, settings } = useStore();
+  const { lang, history, favorites, toggleFavorite, user, login, settings, clearHistory } = useStore();
   const t = I18N[lang];
   const [searchTerm, setSearchTerm] = useState('');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const filteredHistory = history.filter(item => {
     const searchLower = searchTerm.toLowerCase();
@@ -14,8 +16,40 @@ export default function HistoryPage({ onSelect }) {
            (item.coords || '').toLowerCase().includes(searchLower);
   });
 
+  const handleClear = () => {
+      setShowClearConfirm(true);
+  };
+
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 px-1">
+          <h2 className="text-2xl font-bold text-text-primary">{t.history || 'History'}</h2>
+          {history.length > 0 && (
+            <button 
+              onClick={handleClear}
+              className="p-2 text-text-secondary hover:text-red-500 transition-colors rounded-full hover:bg-surface-button"
+              title={t.clearHistory || 'Clear History'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
+      </div>
+
+      <ConfirmModal 
+          isOpen={showClearConfirm}
+          onClose={() => setShowClearConfirm(false)}
+          onConfirm={() => {
+              clearHistory();
+              setShowClearConfirm(false);
+          }}
+          title={t.clearHistory || 'Clear History'}
+          description={t.confirmClearHistory || 'Are you sure you want to clear all history?'}
+          confirmText={t.delete || 'Delete'}
+          cancelText={t.cancel || 'Cancel'}
+      />
       {/* Search */}
       <div className="relative mb-4">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

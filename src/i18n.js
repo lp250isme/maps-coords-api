@@ -97,7 +97,9 @@ export const I18N = {
         loginToDownloadShortcut: '請登入會員以下載捷徑',
         loginToDirectOpen: '請登入會員以使用直達地圖功能',
         directOpenPromotionTitle: '啟用自動導航',
-        directOpenPromotion: '登入會員即可啟用「我的最愛」及「直達目標地圖」功能，如有開啟下次將自動為您開啟地圖 App。'
+        directOpenPromotion: '登入會員即可啟用「我的最愛」及「直達目標地圖」功能，如有開啟下次將自動為您開啟地圖 App。',
+        confirmClearHistory: '確定要清除所有歷史紀錄嗎？',
+        clearHistory: '清除歷史紀錄'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -195,6 +197,8 @@ export const I18N = {
         loginToDownloadShortcut: 'Please login to download shortcut',
         loginToDirectOpen: 'Please login to use Direct Open',
         directOpenPromotionTitle: 'Enable Auto Navigation',
-        directOpenPromotion: 'Login to enable Favorites and Direct Open Map features. Next time, map app will open automatically.'
+        directOpenPromotion: 'Login to enable Favorites and Direct Open Map features. Next time, map app will open automatically.',
+        confirmClearHistory: 'Are you sure you want to clear all history?',
+        clearHistory: 'Clear History'
     }
 };

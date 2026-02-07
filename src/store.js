@@ -35,7 +35,7 @@ const getInitialFolders = () => {
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 
 export const useStore = create((set, get) => ({
   theme: getInitialTheme(),
@@ -43,18 +43,26 @@ export const useStore = create((set, get) => ({
   history: getInitialHistory(),
   favorites: getInitialFavorites(),
   folders: getInitialFolders(),
-  user: null, // User state
-  isAuthLoading: true, // Auth initialized state
+  user: null, 
+  isAuthLoading: true,
+  unsubscribeSnapshot: null, // Store unsubscribe function
 
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+      set({ user });
+      if (user) {
+          get().subscribeToData(user);
+      } else {
+          get().unsubscribeData();
+      }
+  },
   setAuthLoading: (loading) => set({ isAuthLoading: loading }),
 
   login: async () => {
       try {
           const result = await signInWithPopup(auth, googleProvider);
           const user = result.user;
+          // setUser will handle subscription
           set({ user });
-          await get().syncData(user); // Sync after login
       } catch (error) {
           console.error("Login failed:", error);
       }
@@ -62,6 +70,7 @@ export const useStore = create((set, get) => ({
 
   logout: async () => {
       try {
+          get().unsubscribeData(); // Stop listening
           await signOut(auth);
           set({ 
               user: null,
@@ -192,7 +201,56 @@ export const useStore = create((set, get) => ({
           console.error("Sync failed:", error);
       }
   },
-  
+
+  unsubscribeData: () => {
+      const unsub = get().unsubscribeSnapshot;
+      if (unsub) {
+          unsub();
+          set({ unsubscribeSnapshot: null });
+      }
+  },
+
+  subscribeToData: (user) => {
+      if (!user) return;
+      get().unsubscribeData(); // Clear existing
+
+      const userRef = doc(db, "users", user.uid);
+      const unsubscribe = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+              const cloudData = docSnap.data();
+              // Verify if data is actually different to avoid loop (though setState usually handles strict equality)
+              // Actually, we want to MERGE cloud data with local if it's newer or just replace?
+              // Standard real-time pattern: Cloud is truth.
+              // BUT we have local pending writes potentially. 
+              // To keep it simple and effective: We will just update store from Cloud.
+              // Logic from syncData can be adapted here, but simpler.
+              set(state => {
+                  const cloudFavorites = cloudData.favorites || [];
+                  const cloudHistory = cloudData.history || [];
+                  const cloudFolders = cloudData.folders || [];
+                  const cloudSettings = cloudData.settings || {};
+                  
+                  // Local Storage Sync (Effect)
+                  localStorage.setItem('gtc_favorites', JSON.stringify(cloudFavorites));
+                  localStorage.setItem('gtc_history', JSON.stringify(cloudHistory));
+                  localStorage.setItem('gtc_folders', JSON.stringify(cloudFolders));
+                  localStorage.setItem('gtc_settings', JSON.stringify({ ...state.settings, ...cloudSettings }));
+
+                  return {
+                      favorites: cloudFavorites,
+                      history: cloudHistory,
+                      folders: cloudFolders,
+                      settings: { ...state.settings, ...cloudSettings }
+                  };
+              });
+          }
+      }, (error) => {
+          console.error("Real-time sync error:", error);
+      });
+      
+      set({ unsubscribeSnapshot: unsubscribe });
+  },
+
   toggleTheme: () => set((state) => {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('gtc_theme', newTheme);

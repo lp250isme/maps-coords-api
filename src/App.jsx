@@ -41,12 +41,9 @@ function App() {
     initLang();
 
     // Firebase Auth Listener
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-        setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
         setAuthLoading(false);
-        if (user) {
-            syncData(user);
-        }
     });
 
     return () => unsubscribe();
