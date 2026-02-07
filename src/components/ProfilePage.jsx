@@ -290,7 +290,7 @@ export default function ProfilePage({ onInfoClick }) {
         {/* Download Shortcut */}
         <div className="bg-surface-card rounded-2xl p-3 border border-ios-border mb-4">
           <a 
-            href={user ? "https://www.icloud.com/shortcuts/f428cdadebef441180934ccb20e4b8e4" : "#"}
+            href={user ? "https://www.icloud.com/shortcuts/44f810f58c954dd3aa9acf01e93c432e" : "#"}
             target={user ? "_blank" : undefined}
             rel={user ? "noopener noreferrer" : undefined}
             className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left w-full cursor-pointer"
