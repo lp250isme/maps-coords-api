@@ -11,12 +11,13 @@ import BottomTabBar from './components/BottomTabBar';
 import FavoritesPage from './components/FavoritesPage';
 import HistoryPage from './components/HistoryPage';
 import ProfilePage from './components/ProfilePage';
+import LoginModal from './components/LoginModal';
 
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 function App() {
-  const { theme, lang, initTheme, initLang, addToHistory, checkCache, setUser, syncData, settings, setAuthLoading } = useStore();
+  const { theme, lang, initTheme, initLang, addToHistory, checkCache, setUser, syncData, settings, setSetting, setAuthLoading, login, user, isAuthLoading } = useStore();
   const t = I18N[lang];
   
   const [url, setUrl] = useState('');
@@ -25,6 +26,7 @@ function App() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [promoLoginOpen, setPromoLoginOpen] = useState(false);
   // Initialize from settings.startPage, only when there's no URL parameter
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -49,6 +51,39 @@ function App() {
 
     return () => unsubscribe();
   }, []);
+
+  // Check for Shortcut Promotion
+  useEffect(() => {
+     const params = new URLSearchParams(window.location.search);
+     const isShortcut = params.get('googleMapUrl');
+     
+     if (isShortcut && !user && !isAuthLoading && !isLoading) {
+         const seen = localStorage.getItem('gtc_direct_open_promotion_seen');
+         if (!seen) {
+             setPromoLoginOpen(true);
+         }
+     }
+  }, [user, isAuthLoading, isLoading]);
+
+  const handlePromoWait = async () => {
+      await login(); // This triggers popup
+      setPromoLoginOpen(false);
+      localStorage.setItem('gtc_direct_open_promotion_seen', 'true');
+      
+      // Auto-enable direct open logic?
+      // Since login updates user, App re-renders. 
+      // If user logs in, we might want to default directOpenTarget if null?
+      // We can do this in store login or here using setSetting
+      // But settings is from useStore. Access via store instance or effect?
+      // We will access store via hook - settings is available.
+      // But we need to update it. useStore returns setSetting.
+      // Wait, we need setSetting in App's destructuring first.
+  };
+
+  const handlePromoClose = () => {
+       setPromoLoginOpen(false);
+       localStorage.setItem('gtc_direct_open_promotion_seen', 'true');
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -408,7 +443,26 @@ function App() {
       {/* Bottom Tab Bar */}
       <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
       
-      <InfoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <InfoModal isOpen={isModalOpen}        onClose={() => setIsModalOpen(false)} 
+      />
+      <LoginModal
+          isOpen={promoLoginOpen}
+          onClose={handlePromoClose}
+          onLogin={async () => {
+            await handlePromoWait();
+             if (!settings.directOpenTarget) {
+                 setSetting('directOpenTarget', 'apple');
+             }
+             // Re-trigger direct open check
+             if (result) {
+                 setSuccess(true);
+                 setTimeout(() => setSuccess(false), 1500);
+             }
+          }}
+          title={t.directOpenPromotionTitle}
+          description={t.directOpenPromotion}
+          t={t}
+      />
     </div>
   );
 }

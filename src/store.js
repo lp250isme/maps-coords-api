@@ -63,7 +63,20 @@ export const useStore = create((set, get) => ({
   logout: async () => {
       try {
           await signOut(auth);
-          set({ user: null });
+          set({ 
+              user: null,
+              history: [],
+              favorites: [],
+              folders: [],
+              settings: {} 
+          });
+          // Clear Local Storage
+          localStorage.removeItem('gtc_history');
+          localStorage.removeItem('gtc_favorites');
+          localStorage.removeItem('gtc_folders');
+          localStorage.removeItem('gtc_settings');
+          localStorage.removeItem('gtc_user_settings');
+          localStorage.removeItem('gtc_direct_open_promotion_seen');
       } catch (error) {
           console.error("Logout failed:", error);
       }
@@ -142,30 +155,26 @@ export const useStore = create((set, get) => ({
                   folders: mergedFolders
                   // Cache isn't in state to avoid re-renders, accessible via localStorage/method
               });
-              localStorage.setItem('gtc_favorites', JSON.stringify(mergedFavorites));
-              localStorage.setItem('gtc_history', JSON.stringify(mergedHistory));
-              localStorage.setItem('gtc_settings', JSON.stringify(mergedSettings));
-              localStorage.setItem('gtc_location_cache', JSON.stringify(mergedCache));
               localStorage.setItem('gtc_folders', JSON.stringify(mergedFolders));
               
               // Write back merged data to Cloud
               await setDoc(userRef, { 
-                  favorites: mergedFavorites,
-                  history: mergedHistory,
-                  settings: mergedSettings,
-                  locationCache: mergedCache,
-                  folders: mergedFolders
+                  favorites: mergedFavorites || [],
+                  history: mergedHistory || [],
+                  settings: mergedSettings || {},
+                  locationCache: mergedCache || {},
+                  folders: mergedFolders || []
               }, { merge: true });
 
           } else {
               // First time: Write Local -> Cloud
               const localCache = JSON.parse(localStorage.getItem('gtc_location_cache')) || {};
               await setDoc(userRef, { 
-                  favorites: get().favorites,
-                  history: get().history,
-                  settings: get().settings, // Also sync settings
-                  locationCache: localCache,
-                  folders: get().folders
+                  favorites: get().favorites || [],
+                  history: get().history || [],
+                  settings: get().settings || {}, // Also sync settings
+                  locationCache: localCache || {},
+                  folders: get().folders || []
               }, { merge: true });
           }
           
@@ -358,7 +367,8 @@ export const useStore = create((set, get) => ({
       
       const user = state.user;
       if (user) {
-          setDoc(doc(db, "users", user.uid), { folders: newFolders }, { merge: true }).catch(console.error);
+          const cleanFolders = JSON.parse(JSON.stringify(newFolders));
+          setDoc(doc(db, "users", user.uid), { folders: cleanFolders }, { merge: true }).catch(console.error);
       }
       return { folders: newFolders };
   }),
@@ -379,7 +389,9 @@ export const useStore = create((set, get) => ({
       
       const user = state.user;
       if (user) {
-          setDoc(doc(db, "users", user.uid), { folders: newFolders, favorites: newFavorites }, { merge: true }).catch(console.error);
+          const cleanFolders = JSON.parse(JSON.stringify(newFolders));
+          const cleanFavorites = JSON.parse(JSON.stringify(newFavorites));
+          setDoc(doc(db, "users", user.uid), { folders: cleanFolders, favorites: cleanFavorites }, { merge: true }).catch(console.error);
       }
       return { folders: newFolders, favorites: newFavorites };
   }),
@@ -396,7 +408,8 @@ export const useStore = create((set, get) => ({
       
       const user = state.user;
       if (user) {
-          setDoc(doc(db, "users", user.uid), { favorites: newFavorites }, { merge: true }).catch(console.error);
+          const cleanFavorites = JSON.parse(JSON.stringify(newFavorites));
+          setDoc(doc(db, "users", user.uid), { favorites: cleanFavorites }, { merge: true }).catch(console.error);
       }
       return { favorites: newFavorites };
   }),
@@ -416,7 +429,10 @@ export const useStore = create((set, get) => ({
       
       const user = state.user;
       if (user) {
-          setDoc(doc(db, "users", user.uid), { folders: newFolders, favorites: newFavorites }, { merge: true }).catch(console.error);
+          // Sanitize to remove undefined values
+          const cleanFolders = JSON.parse(JSON.stringify(newFolders));
+          const cleanFavorites = JSON.parse(JSON.stringify(newFavorites));
+          setDoc(doc(db, "users", user.uid), { folders: cleanFolders, favorites: cleanFavorites }, { merge: true }).catch(console.error);
       }
       return { folders: newFolders, favorites: newFavorites };
   })

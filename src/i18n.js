@@ -80,6 +80,7 @@ export const I18N = {
         delete: '刪除',
         confirm: '確認',
         rename: '重新命名',
+        downloadShortcut: '下載捷徑',
         startPage: '起始頁面',
         openInApple: '在 Apple 地圖開啟',
         openInNaver: '在 Naver 開啟',
@@ -92,7 +93,11 @@ export const I18N = {
         noHistory: '尚無歷史紀錄',
         directOpen: '直達目標地圖',
         targetApp: '預設開啟地圖',
-        targetAppOff: '已關閉'
+        targetAppOff: '已關閉',
+        loginToDownloadShortcut: '請登入會員以下載捷徑',
+        loginToDirectOpen: '請登入會員以使用直達地圖功能',
+        directOpenPromotionTitle: '啟用自動導航',
+        directOpenPromotion: '登入會員即可啟用「我的最愛」及「直達目標地圖」功能，如有開啟下次將自動為您開啟地圖 App。'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -186,6 +191,10 @@ export const I18N = {
         noHistory: 'No history',
         directOpen: 'Direct Open Map',
         targetApp: 'Default Map App',
-        targetAppOff: 'Disabled'
+        targetAppOff: 'Disabled',
+        loginToDownloadShortcut: 'Please login to download shortcut',
+        loginToDirectOpen: 'Please login to use Direct Open',
+        directOpenPromotionTitle: 'Enable Auto Navigation',
+        directOpenPromotion: 'Login to enable Favorites and Direct Open Map features. Next time, map app will open automatically.'
     }
 };

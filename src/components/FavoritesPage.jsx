@@ -155,6 +155,32 @@ export default function FavoritesPage({ onSelect }) {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Search */}
+      <div className="relative mb-4 z-30">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg className="h-4 w-4 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          className="block w-full pl-9 pr-8 py-3 border-none rounded-xl bg-[var(--input-bg)] text-text-primary placeholder:text-text-secondary focus:ring-0 text-[15px] outline-none"
+          placeholder={t.search || 'Search'}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        {searchTerm && (
+          <button
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary"
+            onClick={() => setSearchTerm('')}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       {/* Folder Filter & Search */}
       <div className="mb-1.5 relative z-40">
         <button
@@ -267,8 +293,11 @@ export default function FavoritesPage({ onSelect }) {
                           onChange={(e) => setRenameFolderValue(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && renameFolderValue.trim()) {
-                              renameFolder(folder, renameFolderValue.trim());
+                              const newName = renameFolderValue.trim();
+                              renameFolder(folder, newName);
                               setRenamingFolder(null);
+                              setSelectedFolder(newName);
+                              setShowFolderDropdown(false);
                             }
                             if (e.key === 'Escape') setRenamingFolder(null);
                           }}
@@ -276,8 +305,11 @@ export default function FavoritesPage({ onSelect }) {
                         <button
                           onClick={() => {
                             if (renameFolderValue.trim()) {
-                              renameFolder(folder, renameFolderValue.trim());
+                              const newName = renameFolderValue.trim();
+                              renameFolder(folder, newName);
                               setRenamingFolder(null);
+                              setSelectedFolder(newName);
+                              setShowFolderDropdown(false);
                             }
                           }}
                           className="p-1 text-ios-blue"
@@ -322,31 +354,7 @@ export default function FavoritesPage({ onSelect }) {
         </AnimatePresence>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4 z-0">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg className="h-4 w-4 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <input
-          type="text"
-          className="block w-full pl-9 pr-8 py-3 border-none rounded-xl bg-[var(--input-bg)] text-text-primary placeholder:text-text-secondary focus:ring-0 text-[15px] outline-none"
-          placeholder={t.search || 'Search'}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {searchTerm && (
-          <button
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary"
-            onClick={() => setSearchTerm('')}
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
-            </svg>
-          </button>
-        )}
-      </div>
+
 
       {/* Favorites List - Scrollable Container */}
       {/* List */}

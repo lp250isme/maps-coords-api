@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
 import { I18N } from '../i18n';
+import LoginModal from './LoginModal';
 
 // Helper Toggle Component
 const ToggleItem = ({ label, icon, checked, onChange }) => (
@@ -31,6 +32,7 @@ export default function ProfilePage({ onInfoClick }) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [showStartPageModal, setShowStartPageModal] = useState(false);
   const [showDirectOpenModal, setShowDirectOpenModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const startPageOptions = [
     { 
@@ -252,7 +254,9 @@ export default function ProfilePage({ onInfoClick }) {
 
           <div className="h-[1px] bg-ios-border/50 my-1 mx-2"></div>
 
-          {/* Direct Open - Custom Modal Trigger */}
+          
+          {/* Direct Open - Custom Modal Trigger (Members Only) */}
+          {user && (
           <div 
             className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-surface-button transition-colors cursor-pointer" 
             onClick={() => setShowDirectOpenModal(true)}
@@ -268,15 +272,22 @@ export default function ProfilePage({ onInfoClick }) {
               </svg>
             </div>
           </div>
+          )}
         </div>
 
         {/* Download Shortcut */}
         <div className="bg-surface-card rounded-2xl p-3 border border-ios-border mb-4">
           <a 
-            href="https://www.icloud.com/shortcuts/41cc3c573d55462a9306b3324c04988f"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left w-full"
+            href={user ? "https://www.icloud.com/shortcuts/41cc3c573d55462a9306b3324c04988f" : "#"}
+            target={user ? "_blank" : undefined}
+            rel={user ? "noopener noreferrer" : undefined}
+            className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left w-full cursor-pointer"
+            onClick={(e) => {
+              if (!user) {
+                e.preventDefault();
+                setShowLoginModal(true);
+              }
+            }}
           >
             <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
               <g fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -284,7 +295,7 @@ export default function ProfilePage({ onInfoClick }) {
                 <path d="m18.286 12l2.063 1.313a2 2 0 0 1 0 3.374l-6.201 3.946a4 4 0 0 1-4.296 0l-6.2-3.946a2 2 0 0 1 0-3.374L5.714 12"></path>
               </g>
             </svg>
-            {t.downloadShortcut || '下載捷徑'}
+            {t.downloadShortcut || 'Download Shortcut'}
           </a>
         </div>
 
@@ -441,6 +452,15 @@ export default function ProfilePage({ onInfoClick }) {
           </>
         )}
       </AnimatePresence>
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => { login(); setShowLoginModal(false); }}
+        title={t.loginToDownloadShortcut || 'Please login to download shortcut'}
+        t={t}
+      />
     </div>
   );
 }
