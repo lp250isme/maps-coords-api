@@ -236,7 +236,15 @@ export const useStore = create((set, get) => ({
                   localStorage.setItem('gtc_folders', JSON.stringify(cloudFolders));
                   localStorage.setItem('gtc_settings', JSON.stringify({ ...state.settings, ...cloudSettings }));
 
+                  // Sync User Profile Data (API Key, Name)
+                  const updatedUser = { 
+                      ...state.user, 
+                      apiKey: cloudData.apiKey || state.user?.apiKey,
+                      customName: cloudData.customName || state.user?.customName
+                  };
+
                   return {
+                      user: updatedUser,
                       favorites: cloudFavorites,
                       history: cloudHistory,
                       folders: cloudFolders,
@@ -249,6 +257,26 @@ export const useStore = create((set, get) => ({
       });
       
       set({ unsubscribeSnapshot: unsubscribe });
+  },
+
+  generateApiKey: async () => {
+      const user = get().user;
+      if (!user) return;
+      
+      const newKey = 'gtk_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+      
+      try {
+          await setDoc(doc(db, "users", user.uid), { apiKey: newKey }, { merge: true });
+          
+          // Local update
+          set(state => ({
+              user: { ...state.user, apiKey: newKey }
+          }));
+          return newKey;
+      } catch (error) {
+          console.error("Error generating API Key:", error);
+          throw error;
+      }
   },
 
   toggleTheme: () => set((state) => {

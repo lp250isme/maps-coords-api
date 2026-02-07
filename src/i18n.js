@@ -99,7 +99,18 @@ export const I18N = {
         directOpenPromotionTitle: '啟用自動導航',
         directOpenPromotion: '登入會員即可啟用「我的最愛」及「直達目標地圖」功能，如有開啟下次將自動為您開啟地圖 App。',
         confirmClearHistory: '確定要清除所有歷史紀錄嗎？',
-        clearHistory: '清除歷史紀錄'
+        clearHistory: '清除歷史紀錄',
+        // API Key Section
+        apiKeyTitle: 'API Key',
+        apiKeyDesc: '產生 API Key 以供 iOS 捷徑在不開啟瀏覽器的情況下使用。',
+        generateApiKey: '產生 API Key',
+        regenerateApiKey: '重新產生 Key',
+        yourApiKey: '您的 API Key:',
+        copy: '複製',
+        confirmGenerateKey: '確定要產生新的 API Key 嗎？',
+        confirmRegenerateKey: '確定要重新產生嗎？舊的 Key 將會失效。',
+        apiKeyRequired: '此操作需要 API Key。',
+        apiKeyMissingError: '網址缺少 API Key，請檢查您的捷徑設定。'
     },
     'en': {
         placeholder: 'Paste Google Maps URL here...',
@@ -199,6 +210,17 @@ export const I18N = {
         directOpenPromotionTitle: 'Enable Auto Navigation',
         directOpenPromotion: 'Login to enable Favorites and Direct Open Map features. Next time, map app will open automatically.',
         confirmClearHistory: 'Are you sure you want to clear all history?',
-        clearHistory: 'Clear History'
+        clearHistory: 'Clear History',
+        // API Key Section
+        apiKeyTitle: 'API Key',
+        apiKeyDesc: 'Generate an API Key to use Shortcuts without opening the browser.',
+        generateApiKey: 'Generate API Key',
+        regenerateApiKey: 'Regenerate Key',
+        yourApiKey: 'Your API Key:',
+        copy: 'Copy',
+        confirmGenerateKey: 'Generate a new API Key?',
+        confirmRegenerateKey: 'Regenerate API Key? Old key will stop working.',
+        apiKeyRequired: 'API Key is required for this action.',
+        apiKeyMissingError: 'Missing API Key in URL. Please update your Shortcut configuration.'
     }
 };
