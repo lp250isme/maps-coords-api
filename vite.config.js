@@ -21,6 +21,10 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       }
+    },
+    // Allow serving files from one level up to the project root
+    fs: {
+      strict: false,
     }
   }
 });

@@ -1,12 +1,65 @@
 module.exports = async function handler(req, res) {
-  const { url } = req.query
+  console.log('⚡️ API Request received. Params:', req.query);
+  const { url, apiKey, api } = req.query
+  const queryKey = apiKey || api;
   
   if (!url) return res.status(400).json({ error: 'Missing url' })
+  
+  // Enforce API Key for all API requests
+  // if (!queryKey) {
+  //     return res.status(401).json({ error: 'API Key is required' });
+  // }
+
   if (!url.includes('google') && !url.includes('goo.gl')) {
       return res.status(400).json({ error: 'Not a Google Maps URL' })
   }
 
 const axios = require('axios');
+const { initializeApp, getApps, getApp } = require("firebase/app");
+const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
+const { getFirestore, collection, query, where, getDocs, doc, updateDoc } = require("firebase/firestore");
+
+const firebaseConfig = {
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID
+};
+
+// Singleton-like initialization for Vercel/Node
+let app;
+let auth;
+let db;
+
+function initFirebase() {
+    if (!getApps().length) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+    auth = getAuth(app);
+    db = getFirestore(app);
+}
+
+async function serverLogin() {
+    initFirebase();
+    if (!auth.currentUser) {
+        const email = process.env.SERVER_WORKER_EMAIL;
+        const password = process.env.SERVER_WORKER_PASSWORD;
+        if (email && password) {
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                console.log("✅ Server Worker Logged In");
+            } catch (e) {
+                console.error("❌ Server Login Failed:", e.message);
+            }
+        } else {
+            console.warn("⚠️ Missing SERVER_WORKER_EMAIL or PASSWORD env vars");
+        }
+    }
+}
 
 const MAX_GLOBAL_RETRIES = 20;
 
@@ -172,15 +225,83 @@ async function tryFetchCoords(targetUrl, attemptIndex) {
     return null; 
 }
 
-try {
-    for (let i = 1; i <= MAX_GLOBAL_RETRIES; i++) {
-        console.log(`\n🚀 GLOBAL TRY ${i}/${MAX_GLOBAL_RETRIES} for: ${url}`);
-        
-        const result = await tryFetchCoords(url, i);
-        
-        if (result && result.lat && result.lon) {
-            return sendResult(res, result.lat, result.lon, result.name);
+    // 1. Enforce API Key Validation if provided
+    let userData = null;
+    let uid = null;
+
+    if (queryKey !== undefined) {
+        if (!queryKey.trim()) {
+            return res.status(401).json({ error: 'API Key is missing' });
         }
+
+        await serverLogin();
+        if (auth && auth.currentUser) {
+            try {
+                const usersRef = collection(db, 'users');
+                const q = query(usersRef, where('apiKey', '==', queryKey));
+                const snapshot = await getDocs(q);
+
+                if (!snapshot.empty) {
+                    const userDoc = snapshot.docs[0];
+                    uid = userDoc.id;
+                    userData = userDoc.data();
+                } else {
+                    console.warn(`⚠️ [API] Invalid API Key: ${queryKey}`);
+                    return res.status(401).json({ error: 'Invalid API Key' });
+                }
+            } catch (err) {
+                console.error("❌ [API] DB Error:", err);
+                return res.status(500).json({ error: 'Database Error' });
+            }
+        }
+    }
+
+    try {
+        for (let i = 1; i <= MAX_GLOBAL_RETRIES; i++) {
+            console.log(`\n🚀 GLOBAL TRY ${i}/${MAX_GLOBAL_RETRIES} for: ${url}`);
+            
+            const result = await tryFetchCoords(url, i);
+            
+            if (result && result.lat && result.lon) {
+                let mobileRedirectUrl = null;
+                
+                // If we have authenticated user data, check settings and log history
+                if (userData) {
+                     // Check for Direct Open setting
+                     if (userData.settings?.directOpenTarget === 'apple') {
+                         mobileRedirectUrl = `http://maps.apple.com/?q=${result.lat},${result.lon}`;
+                     }
+                     else if (userData.settings?.directOpenTarget === 'naver') {
+                         const protocol = req.headers['x-forwarded-proto'] || 'http';
+                         const host = req.headers['x-forwarded-host'] || req.headers.host;
+                         const baseUrl = `${protocol}://${host}`;
+                         const encodedName = encodeURIComponent(result.name || "Location");
+                         const encodedCallback = encodeURIComponent(`${baseUrl}/`);
+                         mobileRedirectUrl = `nmap://place?lat=${result.lat}&lng=${result.lon}&name=${encodedName}&appname=${encodedCallback}`;
+                     }
+ 
+                     // Create history item
+                     const newItem = {
+                         coords: `${result.lat},${result.lon}`,
+                         placeName: result.name || `${result.lat}, ${result.lon}`,
+                         lat: result.lat,
+                         lon: result.lon,
+                         timestamp: Date.now()
+                     };
+                     
+                     // Get existing history to prepend
+                     const currentHistory = userData.history || [];
+                     const filtered = currentHistory.filter(h => h.coords !== newItem.coords);
+                     const newHistory = [newItem, ...filtered].slice(0, 100); 
+                     
+                     const userDocRef = doc(db, "users", uid);
+                     await updateDoc(userDocRef, { history: newHistory });
+                     console.log(`✅ [API] Logged history for user ${uid}`);
+                     if (mobileRedirectUrl) console.log(`↪️ [API] Redirect target: ${userData.settings.directOpenTarget}`);
+                }
+    
+                return sendResult(res, result.lat, result.lon, result.name, mobileRedirectUrl);
+            }
 
         if (i < MAX_GLOBAL_RETRIES) {
             // Cap wait time to 1500ms to allow 20 retries within timeout limits
@@ -192,14 +313,21 @@ try {
     }
 
     console.log('❌ All global retries exhausted.');
+    
+    // Headless Fallback for exhausted retries
+    // REMOVED: Restore JSON-only response as requested
+    
     return sendResult(res, null, null, globalBestPlaceName);
 
 } catch (err) {
     console.error('Critical Error:', err.message)
+    // Headless Error Fallback
+    // REMOVED: Restore JSON-only response as requested
+
     return res.status(500).json({ error: 'Server Error', placeName: globalBestPlaceName || "" })
 }
 
-function sendResult(res, lat, lon, name) {
+function sendResult(res, lat, lon, name, redirectUrl = null) {
   const format = val => parseFloat(val).toFixed(6)
   const coords = lat && lon ? `${format(lat)},${format(lon)}` : null
   
@@ -217,7 +345,11 @@ function sendResult(res, lat, lon, name) {
   const safePlaceName = finalName || "";
 
   if (coords || safePlaceName) {
-    return res.status(200).json({ coords, placeName: safePlaceName })
+    return res.status(200).json({ 
+        coords, 
+        placeName: safePlaceName,
+        redirect: redirectUrl // Headless Auth Smart Redirect
+    })
   } else {
     return res.status(404).json({ error: 'Coords not found', placeName: "" })
   }

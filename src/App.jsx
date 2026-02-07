@@ -86,12 +86,16 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q') || params.get('url') || params.get('googleMapUrl');
     const name = params.get('name'); // Get name param
+    const apiKey = params.get('api') || params.get('apiKey'); // Get API Key param
 
     if (query) {
         setUrl(query);
+        // Wait a bit for UI to settle
         setTimeout(() => {
-            handleConvert(query, name); // Pass name to handler
-            // Clean URL after processing
+            handleConvert(query, name, apiKey); // Pass apiKey to handler
+            // Clean URL after processing 
+            // BUT if we are redirecting, we might not want to clear immediately? 
+            // Actually clearing is fine, redirection happens via window.location.href
             window.history.replaceState({}, '', window.location.pathname);
         }, 500);
     }
@@ -147,7 +151,7 @@ function App() {
       );
   }
 
-  const handleConvert = async (directUrl, sharedName = null) => {
+  const handleConvert = async (directUrl, sharedName = null, apiKey = null) => {
     const inputUrl = typeof directUrl === 'string' ? directUrl : url;
     if (!inputUrl.trim()) return;
 
@@ -156,6 +160,7 @@ function App() {
     setError('');
     setResult(null);
 
+    // 1. Regex Verification (Client Side) for Raw Coords
     const coordsRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
     const match = inputUrl.trim().match(coordsRegex);
 
@@ -181,8 +186,8 @@ function App() {
         return; 
     }
 
-    // 2. Check Cache (Database/Local)
-    const cachedResult = checkCache(inputUrl.trim());
+    // 2. Check Cache (Database/Local) - Skip if apiKey provided (force server check for redirect settings)
+    const cachedResult = !apiKey ? checkCache(inputUrl.trim()) : null;
     if (cachedResult) {
         console.log("Cache Hit:", cachedResult.placeName);
         setResult(cachedResult);
@@ -195,11 +200,26 @@ function App() {
         return;
     }
 
+    let responseData = null;
     try {
-      const res = await axios.get('/api', {
-        params: { url: inputUrl.trim() }
-      });
-      const data = res.data;
+      // Prepare params
+      const params = { url: inputUrl.trim(), format: 'json' };
+      if (apiKey) params.apiKey = apiKey;
+
+      const res = await axios.get('/api', { params });
+      responseData = res.data;
+      const data = responseData;
+
+      // Handle Headless Redirect (if API returns redirect instruction)
+      if (data.redirect) {
+          setRedirecting(true);
+          window.location.href = data.redirect;
+          // Close tab fallback
+          setTimeout(() => {
+              window.close();
+          }, 1500);
+          return; // Stop processing UI updates
+      }
 
       const { coords, placeName } = data;
       
@@ -218,7 +238,10 @@ function App() {
       };
 
       setResult(resultItem);
-      addToHistory(resultItem, inputUrl.trim());
+      // Only add to client history if NOT using API Key (API Key history is handled on server)
+      if (!apiKey) {
+          addToHistory(resultItem, inputUrl.trim());
+      }
       
       lastConvertedUrl.current = inputUrl.trim();
       
@@ -228,6 +251,16 @@ function App() {
     } catch (err) {
       if (err.response) {
           const { status, data } = err.response;
+          
+          // Retry Logic: If 401 (Invalid API Key) and we used a key, retry without it
+          if (status === 401 && apiKey) {
+              console.warn("⚠️ Invalid API Key, retrying as public request...");
+              // We need to wait a small bit to avoid recursion loop if something is weird, 
+              // but here we just call it with null apiKey.
+              // We should ensure we don't loop forever. apiKey is null, so next call won't enter here.
+              return handleConvert(inputUrl, sharedName, null);
+          }
+
           if (status === 404 || data.error === 'Coords not found') {
               setError(t.pleaseCopyFromShare);
           } else if (data.error === 'Not a Google Maps URL') {
@@ -239,7 +272,10 @@ function App() {
         setError(err.message || t.errorFetching);
       }
     } finally {
-      setIsLoading(false);
+      // If redirecting, we generally don't turn off loading to show the redirect screen
+      if (!responseData?.redirect) {
+          setIsLoading(false);
+      }
     }
   };
 

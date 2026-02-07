@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
 import { I18N } from '../i18n';
 import LoginModal from './LoginModal';
+import ConfirmModal from './ConfirmModal';
 
 // Helper Toggle Component
 const ToggleItem = ({ label, icon, checked, onChange }) => (
@@ -33,6 +34,11 @@ export default function ProfilePage({ onInfoClick }) {
   const [showStartPageModal, setShowStartPageModal] = useState(false);
   const [showDirectOpenModal, setShowDirectOpenModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showApiKeyGenerateConfirm, setShowApiKeyGenerateConfirm] = useState(false);
+  const [showApiKeyRegenerateConfirm, setShowApiKeyRegenerateConfirm] = useState(false);
+  const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
+  const [isApiKeyCopied, setIsApiKeyCopied] = useState(false);
+
 
   const startPageOptions = [
     { 
@@ -254,7 +260,13 @@ export default function ProfilePage({ onInfoClick }) {
 
           <div className="h-[1px] bg-ios-border/50 my-1 mx-2"></div>
 
+          {/* Version Info */}
           
+
+
+
+
+
           {/* Direct Open - Custom Modal Trigger (Members Only) */}
           {user && (
           <div 
@@ -278,7 +290,7 @@ export default function ProfilePage({ onInfoClick }) {
         {/* Download Shortcut */}
         <div className="bg-surface-card rounded-2xl p-3 border border-ios-border mb-4">
           <a 
-            href={user ? "https://www.icloud.com/shortcuts/41cc3c573d55462a9306b3324c04988f" : "#"}
+            href={user ? "https://www.icloud.com/shortcuts/f428cdadebef441180934ccb20e4b8e4" : "#"}
             target={user ? "_blank" : undefined}
             rel={user ? "noopener noreferrer" : undefined}
             className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left w-full cursor-pointer"
@@ -299,8 +311,97 @@ export default function ProfilePage({ onInfoClick }) {
           </a>
         </div>
 
+        {/* API Key Management (Members Only) */}
+        {user && (
+        <div className="bg-surface-card rounded-2xl p-4 mb-4 shadow-sm border border-ios-border">
+            <h3 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4 text-ios-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+                {t.apiKeyTitle || 'API Key (Headless Mode)'}
+            </h3>
+            
+            {user.apiKey ? (
+                <div className="flex items-center gap-2 bg-[var(--bg-secondary)] rounded-xl p-2 w-full">
+                    <code className="flex-1 text-xs font-mono text-text-primary break-all select-all px-1 text-left min-h-[1.5em] flex items-center">
+                        {isApiKeyVisible ? user.apiKey : '********'}
+                    </code>
+                    
+                    {/* Visibility Toggle */}
+                    <button 
+                        onClick={() => setIsApiKeyVisible(!isApiKeyVisible)}
+                        className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-button rounded-lg transition-colors shrink-0"
+                        title={isApiKeyVisible ? (t.hide || "Hide") : (t.show || "Show")}
+                    >
+                        {isApiKeyVisible ? (
+                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                        ) : (
+                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        )}
+                    </button>
+
+                    {/* Copy Button */}
+                    <button 
+                        onClick={() => {
+                            const copyText = user.apiKey;
+                            if (navigator.clipboard && window.isSecureContext) {
+                                navigator.clipboard.writeText(copyText).then(() => {
+                                    setIsApiKeyCopied(true);
+                                    setTimeout(() => setIsApiKeyCopied(false), 2000);
+                                });
+                            } else {
+                                // Fallback for non-secure context
+                                const textArea = document.createElement("textarea");
+                                textArea.value = copyText;
+                                document.body.appendChild(textArea);
+                                textArea.focus();
+                                textArea.select();
+                                try {
+                                    document.execCommand('copy');
+                                    setIsApiKeyCopied(true);
+                                    setTimeout(() => setIsApiKeyCopied(false), 2000);
+                                } catch (err) {
+                                    console.error('Copy failed', err);
+                                }
+                                document.body.removeChild(textArea);
+                            }
+                        }}
+                        className={`p-2 rounded-lg transition-colors shrink-0 ${isApiKeyCopied ? 'text-green-500 bg-green-500/10' : 'text-ios-blue hover:bg-surface-button'}`}
+                        title={t.copy || "Copy"}
+                    >
+                        {isApiKeyCopied ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                        )}
+                    </button>
+
+                    <button
+                        onClick={() => setShowApiKeyRegenerateConfirm(true)}
+                        className="p-2 text-text-secondary hover:text-red-500 transition-colors shrink-0"
+                        title={t.regenerateApiKey || "Regenerate"}
+                    >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                </div>
+            ) : (
+                <button
+                    onClick={() => setShowApiKeyGenerateConfirm(true)}
+                    className="w-full py-2 px-3 bg-ios-blue/10 text-ios-blue text-sm font-medium rounded-xl hover:bg-ios-blue/20 transition-colors text-left flex items-center gap-2"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    {t.generateApiKey || 'Generate API Key'}
+                </button>
+            )}
+        </div>
+        )}
+
         {/* About */}
-        <div className="bg-surface-card rounded-2xl p-3 border border-ios-border">
+        <div className="bg-surface-card rounded-2xl p-3 border border-ios-border mb-4">
           <button 
             onClick={onInfoClick}
             className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-button text-sm font-medium text-text-primary transition-colors text-left w-full"
@@ -309,6 +410,8 @@ export default function ProfilePage({ onInfoClick }) {
             {t.about || t.infoTitle?.split(' ')[0] || 'About'}
           </button>
         </div>
+
+
       </div>
 
       {/* Logout Button */}
@@ -461,6 +564,34 @@ export default function ProfilePage({ onInfoClick }) {
         title={t.loginToDownloadShortcut || 'Please login to download shortcut'}
         t={t}
       />
+
+        {/* API Key Generate Confirm Modal */}
+        <ConfirmModal
+            isOpen={showApiKeyGenerateConfirm}
+            onClose={() => setShowApiKeyGenerateConfirm(false)}
+            onConfirm={async () => {
+                await useStore.getState().generateApiKey();
+                setShowApiKeyGenerateConfirm(false);
+            }}
+            title={t.generateApiKey || 'Generate API Key'}
+            description={t.confirmGenerateKey || 'Generate a new API Key?'}
+            confirmText={t.confirm || 'Confirm'}
+            cancelText={t.cancel || 'Cancel'}
+        />
+
+        {/* API Key Regenerate Confirm Modal */}
+        <ConfirmModal
+            isOpen={showApiKeyRegenerateConfirm}
+            onClose={() => setShowApiKeyRegenerateConfirm(false)}
+            onConfirm={async () => {
+                await useStore.getState().generateApiKey();
+                setShowApiKeyRegenerateConfirm(false);
+            }}
+            title={t.regenerateApiKey || 'Regenerate Key'}
+            description={t.confirmRegenerateKey || 'Regenerate API Key? Old key will stop working.'}
+            confirmText={t.confirm || 'Confirm'}
+            cancelText={t.cancel || 'Cancel'}
+        />
     </div>
   );
 }
