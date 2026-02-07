@@ -107,15 +107,45 @@ function App() {
       if (settings.directOpenTarget === 'apple') {
           targetUrl = `http://maps.apple.com/?q=${lat},${lon}`;
       } else if (settings.directOpenTarget === 'naver') {
-          const naverUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app`;
-          targetUrl = naverUrl;
+          const encodedName = encodeURIComponent(placeName || 'Location');
+          targetUrl = `nmap://place?lat=${lat}&lng=${lon}&name=${encodedName}&appname=https%3A%2F%2Fcomap.app%2F`;
       }
       
       if (targetUrl) {
+          // Show message before redirecting
+          setRedirecting(true);
           window.location.href = targetUrl;
+          
+          // Attempt to close tab after a short delay (for supported browsers)
+          setTimeout(() => {
+              window.close();
+          }, 1500);
       }
     }
   }, [result, success, settings.directOpenTarget]);
+
+  // Add state for redirecting UI
+  const [redirecting, setRedirecting] = useState(false);
+
+  if (redirecting) {
+      return (
+          <div className="fixed inset-0 bg-surface-bg flex flex-col items-center justify-center z-50 p-6 text-center">
+              <div className="w-16 h-16 mb-6 rounded-2xl bg-surface-card flex items-center justify-center shadow-ios-lg">
+                  <svg className="w-8 h-8 text-ios-blue animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+              </div>
+              <h2 className="text-xl font-bold text-text-primary mb-2">Redirecting...</h2>
+             <p className="text-text-secondary mb-8">Opening your map app.</p>
+              <button 
+                  onClick={() => window.close()}
+                  className="px-6 py-3 bg-surface-button text-text-primary rounded-xl font-medium hover:bg-opacity-80 transition-colors"
+              >
+                  Close this tab
+              </button>
+          </div>
+      );
+  }
 
   const handleConvert = async (directUrl, sharedName = null) => {
     const inputUrl = typeof directUrl === 'string' ? directUrl : url;
